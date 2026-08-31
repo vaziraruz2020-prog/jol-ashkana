@@ -110,7 +110,12 @@ async function getBody(req) {
 
 function pathnameOf(req) {
   const raw = req.url || '/';
-  const path = raw.split('?')[0];
+  let path = raw.split('?')[0];
+  try {
+    if (/^https?:\/\//i.test(raw)) path = new URL(raw).pathname;
+  } catch {
+    /* keep path */
+  }
   if (path.startsWith('/api')) return path;
   return `/api${path.startsWith('/') ? path : `/${path}`}`;
 }
@@ -160,9 +165,28 @@ function sendErr(res, err) {
   return false;
 }
 
+function sendDbDown(res, err) {
+  send(res, 503, {
+    error: err?.code === 'db_config' ? 'db_config' : 'db',
+    hint: err?.message || 'Database is not configured',
+  });
+}
+
+function healthPayload(err) {
+  return {
+    ok: false,
+    db: 'none',
+    vercel: Boolean(process.env.VERCEL),
+    hasDatabaseUrl: Boolean(
+      process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_PRISMA_URL,
+    ),
+    error: 'db',
+    hint: err?.message || 'Health check failed',
+  };
+}
+
 export async function handle(req, res) {
   try {
-    await ensureDb();
     if (req.method === 'OPTIONS') {
       res.statusCode = 204;
       res.end();
@@ -175,9 +199,20 @@ export async function handle(req, res) {
     const q = Object.fromEntries(url.searchParams.entries());
     const hit = (m, p) => matchRoute(m, p, method, pathname);
 
-    if (hit('GET', '/api/health')) {
-      const health = await healthCheck();
-      send(res, 200, health);
+    if (hit('GET', '/api/health') || pathname === '/api/health' || pathname.endsWith('/health')) {
+      try {
+        const health = await healthCheck();
+        send(res, health.ok ? 200 : 503, health);
+      } catch (err) {
+        send(res, 503, healthPayload(err));
+      }
+      return;
+    }
+
+    try {
+      await ensureDb();
+    } catch (err) {
+      sendDbDown(res, err);
       return;
     }
 
@@ -747,7 +782,8 @@ export async function handle(req, res) {
 
     send(res, 404, { error: 'not_found', db: dbMode() });
   } catch (err) {
+    if (sendErr(res, err)) return;
     console.error(err);
-    send(res, 500, { error: 'server' });
+    send(res, 500, { error: 'server', hint: err?.message || 'API crashed' });
   }
 }

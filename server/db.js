@@ -43,9 +43,10 @@ const TABLE_FOR = {
 
 let mem = null;
 let pool = null;
+let neonSql = null;
 let pglite = null;
 let ready = false;
-let mode = 'pglite';
+let mode = 'none';
 
 function emptyStore() {
   const s = {};
@@ -89,16 +90,42 @@ function saveMem() {
   }
 }
 
+function onVercel() {
+  return Boolean(process.env.VERCEL);
+}
+
+export function databaseUrl() {
+  return String(
+    process.env.DATABASE_URL ||
+      process.env.POSTGRES_URL ||
+      process.env.POSTGRES_PRISMA_URL ||
+      process.env.POSTGRES_URL_NON_POOLING ||
+      process.env.DATABASE_URL_UNPOOLED ||
+      '',
+  ).trim();
+}
+
 function isNeonUrl(url) {
   return /neon\.tech/i.test(url || '');
 }
 
+function dbFail(code, message) {
+  const err = new Error(message);
+  err.code = code;
+  return err;
+}
+
+function rowsOf(result) {
+  if (!result) return [];
+  if (Array.isArray(result)) return result.map(toCamel);
+  if (Array.isArray(result.rows)) return result.rows.map(toCamel);
+  return [];
+}
+
 async function connectPostgres(url) {
-  if (isNeonUrl(url) || process.env.VERCEL) {
-    const { Pool, neonConfig } = await import('@neondatabase/serverless');
-    const ws = (await import('ws')).default;
-    neonConfig.webSocketConstructor = ws;
-    pool = new Pool({ connectionString: url, max: 5 });
+  if (isNeonUrl(url) || onVercel()) {
+    const { neon } = await import('@neondatabase/serverless');
+    neonSql = neon(url, { fullResults: true });
     return;
   }
   const pg = await import('pg');
@@ -110,6 +137,7 @@ async function connectPostgres(url) {
 }
 
 async function dropPool() {
+  neonSql = null;
   if (!pool) return;
   try {
     await pool.end();
@@ -121,7 +149,7 @@ async function dropPool() {
 
 async function runSql(client, text, params = []) {
   const result = params.length ? await client.query(text, params) : await client.query(text);
-  return (result.rows || []).map(toCamel);
+  return rowsOf(result);
 }
 
 function pgliteDirs() {
@@ -179,6 +207,10 @@ export function dbMode() {
 
 export async function query(text, params = []) {
   if (pglite) return runSql(pglite, text, params);
+  if (neonSql) {
+    const result = params.length ? await neonSql.query(text, params) : await neonSql.query(text);
+    return rowsOf(result);
+  }
   if (!pool) throw new Error('db_not_ready');
   return runSql(pool, text, params);
 }
@@ -186,6 +218,9 @@ export async function query(text, params = []) {
 export async function withTransaction(fn) {
   if (pglite) {
     return pglite.transaction(async (tx) => fn((text, params = []) => runSql(tx, text, params)));
+  }
+  if (neonSql) {
+    return fn((text, params = []) => query(text, params));
   }
   if (!pool) {
     return fn(async () => {
@@ -313,19 +348,44 @@ function useJson(reason) {
   mode = 'json';
 }
 
+async function startPostgres(url) {
+  await connectPostgres(url);
+  await runMigrations(query);
+  mode = 'postgres';
+  console.log('JOL-Ashkana db=postgres');
+}
+
 export async function ensureDb() {
   if (ready) return mode;
-  const url = String(process.env.DATABASE_URL || '').trim();
+  const url = databaseUrl();
   const forceJson = String(process.env.STORE || '').toLowerCase() === 'json';
+
+  if (onVercel()) {
+    if (!url) {
+      mode = 'none';
+      throw dbFail(
+        'db_config',
+        'DATABASE_URL is missing. In Vercel: Storage → Create Database → Neon, or Settings → Environment → add DATABASE_URL and JWT_SECRET, then Redeploy.',
+      );
+    }
+    try {
+      await startPostgres(url);
+    } catch (err) {
+      await dropPool();
+      mode = 'none';
+      throw dbFail('db', `Postgres failed: ${err.message}`);
+    }
+    ready = true;
+    await seedGeo();
+    await seedAdmin();
+    return mode;
+  }
 
   if (forceJson) {
     useJson('STORE=json — file store (override).');
   } else if (url) {
     try {
-      await connectPostgres(url);
-      await runMigrations(query);
-      mode = 'postgres';
-      console.log('JOL-Ashkana db=postgres');
+      await startPostgres(url);
     } catch (err) {
       await dropPool();
       console.warn(`Postgres URL failed (${err.message}). Using embedded Postgres.`);
@@ -342,11 +402,32 @@ export async function ensureDb() {
 }
 
 export async function healthCheck() {
-  await ensureDb();
-  if (isPostgres()) {
-    await query('SELECT 1 AS ok');
+  const payload = {
+    ok: false,
+    db: mode || 'none',
+    vercel: onVercel(),
+    hasDatabaseUrl: Boolean(databaseUrl()),
+    hint: '',
+  };
+  try {
+    await ensureDb();
+    if (isPostgres()) {
+      await query('SELECT 1 AS ok');
+    }
+    payload.ok = true;
+    payload.db = mode;
+    payload.hint =
+      mode === 'postgres'
+        ? 'Neon/Postgres connected. Accounts persist.'
+        : `Using ${mode}. On Vercel you need DATABASE_URL.`;
+    return payload;
+  } catch (err) {
+    payload.ok = false;
+    payload.db = mode || 'none';
+    payload.error = err.code || 'db';
+    payload.hint = err.message || 'Database is not configured';
+    return payload;
   }
-  return { ok: true, db: mode };
 }
 
 export async function closeDb() {

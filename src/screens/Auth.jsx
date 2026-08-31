@@ -31,9 +31,13 @@ export default function Auth({ mode }) {
       else if (data.user?.activeRole === 'baker') go('#/cabinet');
       else go('#/catalog');
     } catch (err) {
-      if (err.data?.error === 'blocked') setError(err.data.reason || t('blockedTitle'));
-      else if (err.data?.error === 'exists') setError(t('existsError'));
-      else if (err.data?.error === 'password') setError(t('passwordHint'));
+      const code = err.data?.error;
+      if (code === 'blocked') setError(err.data.reason || t('blockedTitle'));
+      else if (code === 'exists') setError(t('existsError'));
+      else if (code === 'password') setError(t('passwordHint'));
+      else if (code === 'name') setError(t('nameError'));
+      else if (code === 'email') setError(t('emailError'));
+      else if (code === 'db' || code === 'db_config' || err.status === 503) setError(t('dbError'));
       else if (err.status === 401) setError(t('authError'));
       else setError(t('serverError'));
     } finally {
