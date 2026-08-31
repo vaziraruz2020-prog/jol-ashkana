@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
+import { usePoll } from '../lib/poll.js';
 import { formatMoney } from '../lib/format.js';
 import { formatDate } from '../lib/dates.js';
 import { go } from '../lib/route.js';
@@ -15,14 +16,22 @@ export default function OrderDetail({ id }) {
   const [reportOpen, setReportOpen] = useState(false);
 
   useEffect(() => {
-    if (!app.user) {
-      go('#/login');
-      return;
-    }
-    api(`/orders/${id}`)
-      .then((d) => setOrder(d.order))
-      .catch(() => setMissing(true));
-  }, [id, app.user]);
+    if (!app.user) go('#/login');
+  }, [app.user]);
+
+  usePoll(
+    async () => {
+      if (!app.user || !id) return;
+      try {
+        const d = await api(`/orders/${id}`);
+        setOrder(d.order);
+        setMissing(false);
+      } catch {
+        setMissing(true);
+      }
+    },
+    { enabled: Boolean(app.user && id), interval: 5000 },
+  );
 
   if (!app.user) return null;
   if (missing) return <EmptyState title={t('adminNoOrders')} action={t('navOrders')} onAction={() => go('#/orders')} />;

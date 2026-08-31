@@ -1,16 +1,21 @@
 # JOL-Ashkana — how to try it
 
-Data lives on the API (`data/store.json` locally, Postgres on Vercel). Guest, baker and support share the same orders and kitchens. One account can buy and bake.
+Locally the app uses **embedded Postgres** (PGlite): real SQL, migrations, leftover transactions. On Vercel it uses Neon when `DATABASE_URL` is set. Guest, baker and support share the same orders and kitchens. One account can buy and bake.
+
+Order screens poll every few seconds, so a baker status change shows up for the guest without a reload.
 
 ## Run the app
 
 ```bash
+npm install
 npm run dev
 ```
 
 Open **http://localhost:5173** — that is the website.
 
-`http://127.0.0.1:8787` is the API only. Opening it in a browser is not the app (`{"error":"not_found"}` is normal there).
+`http://127.0.0.1:8787` is the API only. The root there should look like `{ "ok": true, "app": "JOL-Ashkana API", "db": "pglite", "open": "http://localhost:5173" }`.
+
+`GET /api/health` → `{ "ok": true, "db": "pglite" }`.
 
 There are no demo baker accounts. Catalog is empty until someone submits a kitchen and support verifies it.
 

@@ -19,31 +19,44 @@ There are **no fake baker accounts**. Catalog starts empty until a real user ope
 
 - React + Vite + Tailwind (mobile-first PWA-style UI)
 - Node API (`/api/*`)
-- JSON file store locally (`data/store.json`)
-- PostgreSQL (Neon) when `DATABASE_URL` is set — required on Vercel
+- **Real SQL database** locally: embedded Postgres (PGlite) — no Docker
+- PostgreSQL (Docker or Neon) when `DATABASE_URL` is set
 - HttpOnly JWT cookie, bcrypt passwords
 - Russian + English
+- Live order status via short polling (guest, baker, support)
 
 ## Run locally
+
+No Docker. The API creates a real Postgres database on disk and runs migrations.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Vite: http://localhost:5173  
-API: http://127.0.0.1:8787 (proxied as `/api`)
+Open **http://localhost:5173** — that is the website.
 
-Copy `.env.example` to `.env` if you want Postgres or a custom support password.
+API: http://127.0.0.1:8787 (proxied as `/api`)  
+Health: http://127.0.0.1:8787/api/health → `{ "ok": true, "db": "pglite" }`
 
+Opening port 8787 in a browser is the API, not the app.
+
+## Optional: Docker / Neon Postgres
+
+```bash
+# .env
+DATABASE_URL=postgres://jol:jol@127.0.0.1:5432/jol_ashkana
+docker compose up -d
+npm run dev
 ```
-DATABASE_URL=
-JWT_SECRET=change-me-in-production
-ADMIN_EMAIL=support@jol-ashkana.local
-ADMIN_PASSWORD=Support2025!
-```
 
-Without `DATABASE_URL` the API writes `data/store.json`. That file is gitignored.
+Health then returns `{ "ok": true, "db": "postgres" }`. If that URL is down, the API uses embedded Postgres instead.
+
+Import an old `data/store.json`:
+
+```bash
+npm run db:import
+```
 
 ## What a guest does
 
@@ -51,7 +64,7 @@ Without `DATABASE_URL` the API writes `data/store.json`. That file is gitignored
 2. Pick country → city → district.
 3. Open a verified kitchen, add dishes, checkout.
 4. Pay cash at pickup or to the courier.
-5. Track: accepted → baking → ready → handed over.
+5. Track: accepted → baking → ready → handed over (updates live).
 6. Report a problem to support.
 
 ## What a baker does
@@ -85,7 +98,7 @@ CIS countries with cities and districts, each with its own currency (UZS, KZT, K
 
 1. Create a Neon Postgres database.
 2. Set env: `DATABASE_URL`, `JWT_SECRET`, optional `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
-3. Deploy. First request creates tables and seeds countries + the support user.
+3. Deploy. First request runs migrations and seeds countries + the support user.
 
 ## Product notes
 

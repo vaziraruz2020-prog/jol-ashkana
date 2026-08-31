@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
+import { usePoll } from '../lib/poll.js';
 import { geoName, statusOrder } from '../copy/index.js';
 import { formatMoney } from '../lib/format.js';
 import { go } from '../lib/route.js';
@@ -23,8 +24,16 @@ export default function Cabinet({ tab = 'orders' }) {
       setDishes(d.dishes || []);
       app.setKitchen(d.kitchen);
     }).catch(() => {});
-    api('/my/baker-orders').then((d) => setOrders(d.orders || [])).catch(() => {});
   }, [app.user]);
+
+  usePoll(
+    async () => {
+      if (!app.user) return;
+      const d = await api('/my/baker-orders');
+      setOrders(d.orders || []);
+    },
+    { enabled: Boolean(app.user), interval: 5000 },
+  );
 
   if (!app.user) return null;
 

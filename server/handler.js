@@ -1,9 +1,47 @@
-import { randomBytes, randomUUID } from 'crypto';
 import { SLOTS } from './geo-data.js';
-import { checkPassword, cookieHeader, hashPassword, signToken, tokenFromReq } from './auth.js';
-import { ensureDb, findById, findOne, flag, insert, list, update } from './db.js';
+import { checkPassword, cookieHeader, hashPassword, signToken, tokenFromReq, readToken } from './auth.js';
+import { dbMode, ensureDb, healthCheck } from './db.js';
+import { ApiError } from './errors.js';
+import {
+  attachOrder,
+  attachOrders,
+  createOrder,
+  findCityById,
+  findDishById,
+  findDistrictById,
+  findKitchenById,
+  findKitchenByOwner,
+  findOrderById,
+  findTicketById,
+  findUserByEmail,
+  findUserById,
+  insertDish,
+  insertKitchen,
+  insertTicket,
+  insertUser,
+  listAllKitchens,
+  listCities,
+  listCountries,
+  listDishesByKitchen,
+  listDistricts,
+  listKitchensFiltered,
+  listOrdersByBuyer,
+  listOrdersByKitchen,
+  listTickets,
+  listUsers,
+  listUsersByIds,
+  newId,
+  searchAdminOrders,
+  updateDish,
+  updateKitchen,
+  updateOrderStatus,
+  updateTicket,
+  updateUser,
+  writeAudit,
+} from './repos.js';
+import { publicDish, publicKitchen, publicUser } from './serialize.js';
+import { flag, kitchenVisible } from './util.js';
 
-const STATUS_FLOW = ['accepted', 'baking', 'ready', 'delivered'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function send(res, status, obj, extraHeaders) {
@@ -45,9 +83,7 @@ function readRawBody(req) {
     let data = '';
     req.on('data', (c) => {
       data += c;
-      if (data.length > 1_000_000) {
-        reject(new Error('too large'));
-      }
+      if (data.length > 1_000_000) reject(new Error('too large'));
     });
     req.on('end', () => resolve(data));
     req.on('error', reject);
@@ -79,73 +115,12 @@ function pathnameOf(req) {
   return `/api${path.startsWith('/') ? path : `/${path}`}`;
 }
 
-function publicUser(u) {
-  if (!u) return null;
-  return {
-    id: u.id,
-    email: u.email,
-    name: u.name,
-    phone: u.phone || '',
-    locale: u.locale || 'ru',
-    countryId: u.countryId || null,
-    cityId: u.cityId || null,
-    districtId: u.districtId || null,
-    activeRole: u.activeRole === 'baker' ? 'baker' : 'buyer',
-    isSupport: flag(u.isSupport),
-    blocked: flag(u.blocked),
-    blockedReason: u.blockedReason || '',
-  };
-}
-
-function publicKitchen(k, { includePrivate = false } = {}) {
-  if (!k) return null;
-  const base = {
-    id: k.id,
-    ownerUserId: k.ownerUserId,
-    name: k.name,
-    bio: k.bio || '',
-    address: k.address || '',
-    countryId: k.countryId,
-    cityId: k.cityId,
-    districtId: k.districtId,
-    cutoffHour: Number(k.cutoffHour) || 18,
-    deliveryPickup: flag(k.deliveryPickup),
-    deliveryCourier: flag(k.deliveryCourier),
-    emoji: k.emoji || '🍞',
-    accent: k.accent || '#E85D04',
-    verificationStatus: k.verificationStatus,
-    hidden: flag(k.hidden),
-  };
-  if (includePrivate) {
-    base.ownerFullName = k.ownerFullName || '';
-    base.verificationNote = k.verificationNote || '';
-    base.confirmCooksHere = flag(k.confirmCooksHere);
-  }
-  return base;
-}
-
-function publicDish(d) {
-  return {
-    id: d.id,
-    kitchenId: d.kitchenId,
-    name: d.name,
-    category: d.category || '',
-    price: Number(d.price) || 0,
-    unit: d.unit || 'шт',
-    ingredients: d.ingredients || '',
-    leftover: Number(d.leftover) || 0,
-    availableTomorrow: flag(d.availableTomorrow),
-    emoji: d.emoji || '🍽',
-  };
-}
-
 async function currentUser(req) {
   const token = tokenFromReq(req);
   if (!token) return null;
-  const { readToken } = await import('./auth.js');
   const payload = readToken(token);
   if (!payload?.sub) return null;
-  return findById('users', payload.sub);
+  return findUserById(payload.sub);
 }
 
 function requireUser(user, res) {
@@ -169,57 +144,20 @@ function requireSupport(user, res) {
   return true;
 }
 
-function toISODate(date) {
-  const d = date instanceof Date ? date : new Date(date);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function orderDateForBaker(cutoffHour) {
-  const target = new Date();
-  target.setHours(0, 0, 0, 0);
-  target.setDate(target.getDate() + 1);
-  if (new Date().getHours() >= (Number(cutoffHour) || 18)) {
-    target.setDate(target.getDate() + 1);
-  }
-  return target;
-}
-
-function newId(prefix) {
-  return `${prefix}_${randomUUID().slice(0, 8)}`;
-}
-
-function newOrderId() {
-  return `JA-${randomBytes(3).toString('hex').toUpperCase()}`;
-}
-
-function kitchenVisible(k, owner) {
-  if (!k) return false;
-  if (flag(k.hidden)) return false;
-  if (k.verificationStatus !== 'verified') return false;
-  if (owner && flag(owner.blocked)) return false;
-  return true;
-}
-
 async function mePayload(user) {
-  const kitchen = await findOne('kitchens', (k) => k.ownerUserId === user.id);
+  const kitchen = await findKitchenByOwner(user.id);
   return {
     user: publicUser(user),
     kitchen: kitchen ? publicKitchen(kitchen, { includePrivate: true }) : null,
   };
 }
 
-async function attachOrder(order) {
-  const items = await list('orderItems', (i) => i.orderId === order.id);
-  const kitchen = await findById('kitchens', order.kitchenId);
-  return {
-    ...order,
-    payMethod: order.payMethod || 'cash',
-    items,
-    kitchen: kitchen ? publicKitchen(kitchen) : null,
-  };
+function sendErr(res, err) {
+  if (err instanceof ApiError) {
+    send(res, err.status, { error: err.code });
+    return true;
+  }
+  return false;
 }
 
 export async function handle(req, res) {
@@ -235,19 +173,18 @@ export async function handle(req, res) {
     const method = req.method || 'GET';
     const url = new URL(req.url || '/', 'http://localhost');
     const q = Object.fromEntries(url.searchParams.entries());
-
     const hit = (m, p) => matchRoute(m, p, method, pathname);
 
     if (hit('GET', '/api/health')) {
-      send(res, 200, { ok: true });
+      const health = await healthCheck();
+      send(res, 200, health);
       return;
     }
 
     if (hit('GET', '/api/geo')) {
-      const countries = await list('countries');
-      const cities = await list('cities');
-      const districts = await list('districts');
-      countries.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+      const countries = await listCountries();
+      const cities = await listCities();
+      const districts = await listDistricts();
       send(res, 200, { countries, cities, districts, slots: SLOTS });
       return;
     }
@@ -270,12 +207,12 @@ export async function handle(req, res) {
         send(res, 400, { error: 'name' });
         return;
       }
-      const exists = await findOne('users', (u) => u.email === email);
+      const exists = await findUserByEmail(email);
       if (exists) {
         send(res, 409, { error: 'exists' });
         return;
       }
-      const user = {
+      const user = await insertUser({
         id: newId('user'),
         email,
         passwordHash: hashPassword(password),
@@ -286,12 +223,12 @@ export async function handle(req, res) {
         cityId: body.cityId || null,
         districtId: body.districtId || null,
         activeRole: 'buyer',
-        isSupport: 0,
-        blocked: 0,
+        isSupport: false,
+        blocked: false,
         blockedReason: '',
         createdAt: new Date().toISOString(),
-      };
-      await insert('users', user);
+        updatedAt: new Date().toISOString(),
+      });
       send(res, 201, await mePayload(user), { 'Set-Cookie': cookieHeader(signToken(user.id)) });
       return;
     }
@@ -300,7 +237,7 @@ export async function handle(req, res) {
       const body = await getBody(req);
       const email = String(body.email || '').toLowerCase().trim();
       const password = String(body.password || '');
-      const user = await findOne('users', (u) => u.email === email);
+      const user = await findUserByEmail(email);
       if (!user || !checkPassword(password, user.passwordHash)) {
         send(res, 401, { error: 'credentials' });
         return;
@@ -340,46 +277,50 @@ export async function handle(req, res) {
       if (body.countryId) patch.countryId = body.countryId;
       if (body.cityId !== undefined) patch.cityId = body.cityId || null;
       if (body.districtId !== undefined) patch.districtId = body.districtId || null;
-      const next = await update('users', user.id, patch);
+      const next = await updateUser(user.id, patch);
       send(res, 200, await mePayload(next));
       return;
     }
 
     if (hit('GET', '/api/kitchens')) {
       const user = await currentUser(req);
-      const kitchens = await list('kitchens');
-      const users = await list('users');
-      const byId = Object.fromEntries(users.map((u) => [u.id, u]));
+      const kitchens = await listKitchensFiltered({
+        countryId: q.countryId,
+        cityId: q.cityId,
+        districtId: q.districtId,
+      });
+      const owners = await listUsersByIds(kitchens.map((k) => k.ownerUserId));
+      const byId = Object.fromEntries(owners.map((u) => [u.id, u]));
       const filtered = kitchens.filter((k) => {
-        if (q.countryId && k.countryId !== q.countryId) return false;
-        if (q.cityId && k.cityId !== q.cityId) return false;
-        if (q.districtId && k.districtId !== q.districtId) return false;
         if (user && (flag(user.isSupport) || k.ownerUserId === user.id)) return true;
         return kitchenVisible(k, byId[k.ownerUserId]);
       });
-      send(res, 200, { kitchens: filtered.map((k) => publicKitchen(k, { includePrivate: Boolean(user && flag(user.isSupport)) })) });
+      send(res, 200, {
+        kitchens: filtered.map((k) => publicKitchen(k, { includePrivate: Boolean(user && flag(user.isSupport)) })),
+      });
       return;
     }
 
     const kitchenOne = hit('GET', '/api/kitchens/:id');
     if (kitchenOne) {
       const user = await currentUser(req);
-      const kitchen = await findById('kitchens', kitchenOne.id);
+      const kitchen = await findKitchenById(kitchenOne.id);
       if (!kitchen) {
         send(res, 404, { error: 'not_found' });
         return;
       }
-      const owner = await findById('users', kitchen.ownerUserId);
+      const owner = await findUserById(kitchen.ownerUserId);
       const canSee =
-        kitchenVisible(kitchen, owner) ||
-        (user && (user.id === kitchen.ownerUserId || flag(user.isSupport)));
+        kitchenVisible(kitchen, owner) || (user && (user.id === kitchen.ownerUserId || flag(user.isSupport)));
       if (!canSee) {
         send(res, 404, { error: 'hidden' });
         return;
       }
-      const dishes = (await list('dishes', (d) => d.kitchenId === kitchen.id)).map(publicDish);
+      const dishes = (await listDishesByKitchen(kitchen.id)).map(publicDish);
       send(res, 200, {
-        kitchen: publicKitchen(kitchen, { includePrivate: Boolean(user && (user.id === kitchen.ownerUserId || flag(user.isSupport))) }),
+        kitchen: publicKitchen(kitchen, {
+          includePrivate: Boolean(user && (user.id === kitchen.ownerUserId || flag(user.isSupport))),
+        }),
         dishes,
       });
       return;
@@ -388,12 +329,12 @@ export async function handle(req, res) {
     if (hit('GET', '/api/my/kitchen')) {
       const user = await currentUser(req);
       if (!requireUser(user, res)) return;
-      const kitchen = await findOne('kitchens', (k) => k.ownerUserId === user.id);
+      const kitchen = await findKitchenByOwner(user.id);
       if (!kitchen) {
         send(res, 200, { kitchen: null, dishes: [] });
         return;
       }
-      const dishes = (await list('dishes', (d) => d.kitchenId === kitchen.id)).map(publicDish);
+      const dishes = (await listDishesByKitchen(kitchen.id)).map(publicDish);
       send(res, 200, { kitchen: publicKitchen(kitchen, { includePrivate: true }), dishes });
       return;
     }
@@ -416,13 +357,13 @@ export async function handle(req, res) {
         send(res, 400, { error: 'confirm' });
         return;
       }
-      const district = await findById('districts', districtId);
-      const city = await findById('cities', cityId);
+      const district = await findDistrictById(districtId);
+      const city = await findCityById(cityId);
       if (!district || !city || district.cityId !== cityId || city.countryId !== countryId) {
         send(res, 400, { error: 'geo' });
         return;
       }
-      const existing = await findOne('kitchens', (k) => k.ownerUserId === user.id);
+      const existing = await findKitchenByOwner(user.id);
       const payload = {
         name,
         ownerFullName,
@@ -432,28 +373,29 @@ export async function handle(req, res) {
         cityId,
         districtId,
         cutoffHour: Math.min(22, Math.max(10, Number(body.cutoffHour) || 18)),
-        deliveryPickup: body.deliveryPickup === false ? 0 : 1,
-        deliveryCourier: body.deliveryCourier === false ? 0 : 1,
+        deliveryPickup: body.deliveryPickup !== false,
+        deliveryCourier: body.deliveryCourier !== false,
         emoji: String(body.emoji || '🍞').slice(0, 4),
-        confirmCooksHere: 1,
+        confirmCooksHere: true,
         verificationStatus: 'pending',
         verificationNote: '',
-        hidden: existing ? existing.hidden : 0,
+        hidden: existing ? flag(existing.hidden) : false,
       };
-      if (!payload.deliveryPickup && !payload.deliveryCourier) payload.deliveryPickup = 1;
+      if (!payload.deliveryPickup && !payload.deliveryCourier) payload.deliveryPickup = true;
       let kitchen;
       if (existing) {
-        kitchen = await update('kitchens', existing.id, payload);
+        kitchen = await updateKitchen(existing.id, payload);
       } else {
-        kitchen = await insert('kitchens', {
+        kitchen = await insertKitchen({
           id: newId('kit'),
           ownerUserId: user.id,
           accent: '#E85D04',
           createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
           ...payload,
         });
       }
-      if (user.activeRole !== 'baker') await update('users', user.id, { activeRole: 'baker' });
+      if (user.activeRole !== 'baker') await updateUser(user.id, { activeRole: 'baker' });
       send(res, 200, { kitchen: publicKitchen(kitchen, { includePrivate: true }) });
       return;
     }
@@ -461,7 +403,7 @@ export async function handle(req, res) {
     if (hit('POST', '/api/my/dishes')) {
       const user = await currentUser(req);
       if (!requireUser(user, res)) return;
-      const kitchen = await findOne('kitchens', (k) => k.ownerUserId === user.id);
+      const kitchen = await findKitchenByOwner(user.id);
       if (!kitchen) {
         send(res, 400, { error: 'no_kitchen' });
         return;
@@ -473,7 +415,8 @@ export async function handle(req, res) {
         send(res, 400, { error: 'fields' });
         return;
       }
-      const dish = await insert('dishes', {
+      const leftover = Math.max(0, Number(body.leftover) || 20);
+      const dish = await insertDish({
         id: newId('dish'),
         kitchenId: kitchen.id,
         name,
@@ -481,10 +424,12 @@ export async function handle(req, res) {
         price: Math.round(price),
         unit: String(body.unit || 'шт').trim() || 'шт',
         ingredients: String(body.ingredients || '').trim(),
-        leftover: Math.max(0, Number(body.leftover) || 20),
-        availableTomorrow: body.availableTomorrow === false ? 0 : 1,
+        leftover,
+        defaultLeftover: leftover,
+        availableTomorrow: body.availableTomorrow !== false,
         emoji: String(body.emoji || '🍽').slice(0, 4),
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       });
       send(res, 201, { dish: publicDish(dish) });
       return;
@@ -494,8 +439,8 @@ export async function handle(req, res) {
     if (dishPatch) {
       const user = await currentUser(req);
       if (!requireUser(user, res)) return;
-      const kitchen = await findOne('kitchens', (k) => k.ownerUserId === user.id);
-      const dish = await findById('dishes', dishPatch.id);
+      const kitchen = await findKitchenByOwner(user.id);
+      const dish = await findDishById(dishPatch.id);
       if (!kitchen || !dish || dish.kitchenId !== kitchen.id) {
         send(res, 404, { error: 'not_found' });
         return;
@@ -508,9 +453,9 @@ export async function handle(req, res) {
       if (typeof body.category === 'string') patch.category = body.category;
       if (typeof body.ingredients === 'string') patch.ingredients = body.ingredients;
       if (body.leftover != null) patch.leftover = Math.max(0, Number(body.leftover) || 0);
-      if (body.availableTomorrow != null) patch.availableTomorrow = body.availableTomorrow ? 1 : 0;
+      if (body.availableTomorrow != null) patch.availableTomorrow = Boolean(body.availableTomorrow);
       if (typeof body.emoji === 'string') patch.emoji = body.emoji.slice(0, 4);
-      const next = await update('dishes', dish.id, patch);
+      const next = await updateDish(dish.id, patch);
       send(res, 200, { dish: publicDish(next) });
       return;
     }
@@ -518,23 +463,42 @@ export async function handle(req, res) {
     if (hit('GET', '/api/orders')) {
       const user = await currentUser(req);
       if (!requireUser(user, res)) return;
-      const mine = await list('orders', (o) => o.buyerUserId === user.id);
-      mine.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
-      send(res, 200, { orders: await Promise.all(mine.map(attachOrder)) });
+      const mine = await listOrdersByBuyer(user.id);
+      send(res, 200, { orders: await attachOrders(mine) });
       return;
     }
 
     if (hit('GET', '/api/my/baker-orders')) {
       const user = await currentUser(req);
       if (!requireUser(user, res)) return;
-      const kitchen = await findOne('kitchens', (k) => k.ownerUserId === user.id);
+      const kitchen = await findKitchenByOwner(user.id);
       if (!kitchen) {
         send(res, 200, { orders: [] });
         return;
       }
-      const rows = await list('orders', (o) => o.kitchenId === kitchen.id);
-      rows.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
-      send(res, 200, { orders: await Promise.all(rows.map(attachOrder)) });
+      const rows = await listOrdersByKitchen(kitchen.id);
+      send(res, 200, { orders: await attachOrders(rows) });
+      return;
+    }
+
+    const bakerPatch = hit('PATCH', '/api/my/baker-orders/:id');
+    if (bakerPatch) {
+      const user = await currentUser(req);
+      if (!requireUser(user, res)) return;
+      const kitchen = await findKitchenByOwner(user.id);
+      const order = await findOrderById(bakerPatch.id);
+      if (!kitchen || !order || order.kitchenId !== kitchen.id) {
+        send(res, 404, { error: 'not_found' });
+        return;
+      }
+      const body = await getBody(req);
+      const status = String(body.status || '');
+      try {
+        const next = await updateOrderStatus(order, { status, actorUserId: user.id, source: 'baker' });
+        send(res, 200, { order: await attachOrder(next) });
+      } catch (err) {
+        if (!sendErr(res, err)) throw err;
+      }
       return;
     }
 
@@ -542,16 +506,13 @@ export async function handle(req, res) {
     if (orderOne) {
       const user = await currentUser(req);
       if (!requireUser(user, res)) return;
-      const order = await findById('orders', orderOne.id);
+      const order = await findOrderById(orderOne.id);
       if (!order) {
         send(res, 404, { error: 'not_found' });
         return;
       }
-      const kitchen = await findById('kitchens', order.kitchenId);
-      const allowed =
-        order.buyerUserId === user.id ||
-        kitchen?.ownerUserId === user.id ||
-        flag(user.isSupport);
+      const kitchen = await findKitchenById(order.kitchenId);
+      const allowed = order.buyerUserId === user.id || kitchen?.ownerUserId === user.id || flag(user.isSupport);
       if (!allowed) {
         send(res, 404, { error: 'not_found' });
         return;
@@ -583,115 +544,29 @@ export async function handle(req, res) {
         send(res, 400, { error: 'phone' });
         return;
       }
-      if (!SLOTS.includes(slot)) {
-        send(res, 400, { error: 'slot' });
-        return;
-      }
       if (deliveryType === 'courier' && !address) {
         send(res, 400, { error: 'address' });
         return;
       }
-
-      const firstDish = await findById('dishes', itemsIn[0].dishId);
-      if (!firstDish) {
-        send(res, 400, { error: 'dish' });
+      if (SLOTS.length && slot && !SLOTS.includes(slot)) {
+        send(res, 400, { error: 'slot' });
         return;
       }
-      const kitchen = await findById('kitchens', firstDish.kitchenId);
-      const owner = kitchen ? await findById('users', kitchen.ownerUserId) : null;
-      if (!kitchenVisible(kitchen, owner)) {
-        send(res, 400, { error: 'kitchen' });
-        return;
-      }
-      if (deliveryType === 'courier' && !flag(kitchen.deliveryCourier)) {
-        send(res, 400, { error: 'delivery' });
-        return;
-      }
-      if (deliveryType === 'pickup' && !flag(kitchen.deliveryPickup)) {
-        send(res, 400, { error: 'delivery' });
-        return;
-      }
-
-      const country = await findById('countries', kitchen.countryId);
-      const built = [];
-      let total = 0;
-      for (const line of itemsIn) {
-        const dish = await findById('dishes', line.dishId);
-        const qty = Math.max(1, Number(line.qty) || 0);
-        if (!dish || dish.kitchenId !== kitchen.id) {
-          send(res, 400, { error: 'dish' });
-          return;
-        }
-        if (!flag(dish.availableTomorrow) || Number(dish.leftover) < qty) {
-          send(res, 400, { error: 'leftover' });
-          return;
-        }
-        built.push({ dish, qty });
-        total += Number(dish.price) * qty;
-      }
-
-      const order = {
-        id: newOrderId(),
-        buyerUserId: user.id,
-        kitchenId: kitchen.id,
-        guestName,
-        guestPhone,
-        deliveryType,
-        slot,
-        address: deliveryType === 'courier' ? address : kitchen.address,
-        comment,
-        payMethod: 'cash',
-        status: 'accepted',
-        forDate: toISODate(orderDateForBaker(kitchen.cutoffHour)),
-        total,
-        currency: country?.currency || 'UZS',
-        createdAt: new Date().toISOString(),
-      };
-      await insert('orders', order);
-      for (const line of built) {
-        await insert('orderItems', {
-          id: newId('oi'),
-          orderId: order.id,
-          dishId: line.dish.id,
-          name: line.dish.name,
-          qty: line.qty,
-          price: Number(line.dish.price),
+      try {
+        const order = await createOrder({
+          user,
+          itemsIn,
+          guestName,
+          guestPhone,
+          deliveryType,
+          slot: slot || SLOTS[0] || '10:00–12:00',
+          address,
+          comment,
         });
-        await update('dishes', line.dish.id, { leftover: Number(line.dish.leftover) - line.qty });
+        send(res, 201, { order: await attachOrder(order) });
+      } catch (err) {
+        if (!sendErr(res, err)) throw err;
       }
-      if (guestPhone && user.phone !== guestPhone) {
-        await update('users', user.id, { phone: guestPhone, name: guestName || user.name });
-      }
-      send(res, 201, { order: await attachOrder(order) });
-      return;
-    }
-
-    const bakerStatus = hit('PATCH', '/api/my/baker-orders/:id');
-    if (bakerStatus) {
-      const user = await currentUser(req);
-      if (!requireUser(user, res)) return;
-      const kitchen = await findOne('kitchens', (k) => k.ownerUserId === user.id);
-      const order = await findById('orders', bakerStatus.id);
-      if (!kitchen || !order || order.kitchenId !== kitchen.id) {
-        send(res, 404, { error: 'not_found' });
-        return;
-      }
-      const body = await getBody(req);
-      const next = body.status;
-      if (next === 'cancelled' && order.status !== 'delivered') {
-        await restoreLeftover(order);
-        const updated = await update('orders', order.id, { status: 'cancelled' });
-        send(res, 200, { order: await attachOrder(updated) });
-        return;
-      }
-      const cur = STATUS_FLOW.indexOf(order.status);
-      const want = STATUS_FLOW.indexOf(next);
-      if (want !== cur + 1) {
-        send(res, 400, { error: 'status' });
-        return;
-      }
-      const updated = await update('orders', order.id, { status: next });
-      send(res, 200, { order: await attachOrder(updated) });
       return;
     }
 
@@ -699,16 +574,16 @@ export async function handle(req, res) {
       const user = await currentUser(req);
       if (!requireUser(user, res)) return;
       const body = await getBody(req);
-      const targetType = ['order', 'kitchen', 'user'].includes(body.targetType) ? body.targetType : '';
-      const targetId = String(body.targetId || '');
-      const topic = String(body.topic || 'other');
+      const topic = String(body.topic || 'other').trim() || 'other';
       const text = String(body.body || '').trim();
-      if (!targetType || !targetId || text.length < 4) {
+      const targetType = String(body.targetType || 'order').trim();
+      const targetId = String(body.targetId || '').trim();
+      if (text.length < 4 || !targetId) {
         send(res, 400, { error: 'fields' });
         return;
       }
-      const ticket = await insert('tickets', {
-        id: newId('t'),
+      const ticket = await insertTicket({
+        id: newId('tkt'),
         authorUserId: user.id,
         targetType,
         targetId,
@@ -716,76 +591,17 @@ export async function handle(req, res) {
         body: text,
         status: 'open',
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       });
       send(res, 201, { ticket });
-      return;
-    }
-
-    if (hit('GET', '/api/admin/users')) {
-      const user = await currentUser(req);
-      if (!requireSupport(user, res)) return;
-      const users = (await list('users')).map(publicUser);
-      send(res, 200, { users });
       return;
     }
 
     if (hit('GET', '/api/admin/kitchens')) {
       const user = await currentUser(req);
       if (!requireSupport(user, res)) return;
-      const kitchens = await list('kitchens');
+      const kitchens = await listAllKitchens();
       send(res, 200, { kitchens: kitchens.map((k) => publicKitchen(k, { includePrivate: true })) });
-      return;
-    }
-
-    if (hit('GET', '/api/admin/orders')) {
-      const user = await currentUser(req);
-      if (!requireSupport(user, res)) return;
-      const qtext = String(q.q || '').toLowerCase();
-      const digits = String(q.q || '').replace(/\D/g, '');
-      let orders = await list('orders');
-      if (qtext || digits) {
-        orders = orders.filter((o) => {
-          if (digits && String(o.guestPhone || '').includes(digits)) return true;
-          if (qtext && String(o.id).toLowerCase().includes(qtext)) return true;
-          if (qtext && String(o.guestName || '').toLowerCase().includes(qtext)) return true;
-          return false;
-        });
-      }
-      orders.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
-      send(res, 200, { orders: await Promise.all(orders.slice(0, 50).map(attachOrder)) });
-      return;
-    }
-
-    if (hit('GET', '/api/admin/tickets')) {
-      const user = await currentUser(req);
-      if (!requireSupport(user, res)) return;
-      const tickets = await list('tickets');
-      tickets.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
-      send(res, 200, { tickets });
-      return;
-    }
-
-    const adminUser = hit('PATCH', '/api/admin/users/:id');
-    if (adminUser) {
-      const user = await currentUser(req);
-      if (!requireSupport(user, res)) return;
-      const target = await findById('users', adminUser.id);
-      if (!target) {
-        send(res, 404, { error: 'not_found' });
-        return;
-      }
-      if (target.id === user.id) {
-        send(res, 400, { error: 'self' });
-        return;
-      }
-      const body = await getBody(req);
-      const patch = {};
-      if (body.blocked != null) {
-        patch.blocked = body.blocked ? 1 : 0;
-        patch.blockedReason = body.blocked ? String(body.reason || body.blockedReason || '') : '';
-      }
-      const next = await update('users', target.id, patch);
-      send(res, 200, { user: publicUser(next) });
       return;
     }
 
@@ -793,7 +609,7 @@ export async function handle(req, res) {
     if (adminKitchen) {
       const user = await currentUser(req);
       if (!requireSupport(user, res)) return;
-      const kitchen = await findById('kitchens', adminKitchen.id);
+      const kitchen = await findKitchenById(adminKitchen.id);
       if (!kitchen) {
         send(res, 404, { error: 'not_found' });
         return;
@@ -802,37 +618,63 @@ export async function handle(req, res) {
       const patch = {};
       if (body.verificationStatus === 'verified' || body.verificationStatus === 'rejected' || body.verificationStatus === 'pending') {
         patch.verificationStatus = body.verificationStatus;
-        patch.verificationNote = String(body.verificationNote || body.note || '');
       }
-      if (body.hidden != null) patch.hidden = body.hidden ? 1 : 0;
-      const next = await update('kitchens', kitchen.id, patch);
+      if (typeof body.verificationNote === 'string') patch.verificationNote = body.verificationNote;
+      if (body.hidden != null) patch.hidden = Boolean(body.hidden);
+      const next = await updateKitchen(kitchen.id, patch);
+      await writeAudit({
+        actorUserId: user.id,
+        action: 'kitchen.patch',
+        targetType: 'kitchen',
+        targetId: kitchen.id,
+        payload: patch,
+      });
       send(res, 200, { kitchen: publicKitchen(next, { includePrivate: true }) });
       return;
     }
 
-    const adminOrder = hit('PATCH', '/api/admin/orders/:id');
-    if (adminOrder) {
+    if (hit('GET', '/api/admin/users')) {
       const user = await currentUser(req);
       if (!requireSupport(user, res)) return;
-      const order = await findById('orders', adminOrder.id);
-      if (!order) {
+      const users = await listUsers();
+      send(res, 200, { users: users.map(publicUser) });
+      return;
+    }
+
+    const adminUser = hit('PATCH', '/api/admin/users/:id');
+    if (adminUser) {
+      const user = await currentUser(req);
+      if (!requireSupport(user, res)) return;
+      const target = await findUserById(adminUser.id);
+      if (!target) {
         send(res, 404, { error: 'not_found' });
         return;
       }
+      if (flag(target.isSupport)) {
+        send(res, 403, { error: 'forbidden' });
+        return;
+      }
       const body = await getBody(req);
-      const nextStatus = body.status;
-      if (nextStatus === 'cancelled' && order.status !== 'cancelled' && order.status !== 'delivered') {
-        await restoreLeftover(order);
-        const updated = await update('orders', order.id, { status: 'cancelled' });
-        send(res, 200, { order: await attachOrder(updated) });
-        return;
-      }
-      if (!STATUS_FLOW.includes(nextStatus)) {
-        send(res, 400, { error: 'status' });
-        return;
-      }
-      const updated = await update('orders', order.id, { status: nextStatus });
-      send(res, 200, { order: await attachOrder(updated) });
+      const blocked = Boolean(body.blocked);
+      const next = await updateUser(target.id, {
+        blocked,
+        blockedReason: blocked ? String(body.reason || '') : '',
+      });
+      await writeAudit({
+        actorUserId: user.id,
+        action: blocked ? 'user.block' : 'user.unblock',
+        targetType: 'user',
+        targetId: target.id,
+        payload: { reason: body.reason || '' },
+      });
+      send(res, 200, { user: publicUser(next) });
+      return;
+    }
+
+    if (hit('GET', '/api/admin/tickets')) {
+      const user = await currentUser(req);
+      if (!requireSupport(user, res)) return;
+      send(res, 200, { tickets: await listTickets() });
       return;
     }
 
@@ -840,30 +682,72 @@ export async function handle(req, res) {
     if (adminTicket) {
       const user = await currentUser(req);
       if (!requireSupport(user, res)) return;
-      const ticket = await findById('tickets', adminTicket.id);
+      const ticket = await findTicketById(adminTicket.id);
       if (!ticket) {
         send(res, 404, { error: 'not_found' });
         return;
       }
       const body = await getBody(req);
-      const status = ['open', 'working', 'closed'].includes(body.status) ? body.status : ticket.status;
-      const next = await update('tickets', ticket.id, { status });
+      const status = String(body.status || '');
+      if (!['open', 'working', 'closed'].includes(status)) {
+        send(res, 400, { error: 'status' });
+        return;
+      }
+      const next = await updateTicket(ticket.id, { status });
+      await writeAudit({
+        actorUserId: user.id,
+        action: 'ticket.status',
+        targetType: 'ticket',
+        targetId: ticket.id,
+        payload: { status },
+      });
       send(res, 200, { ticket: next });
       return;
     }
 
-    send(res, 404, { error: 'not_found' });
+    if (hit('GET', '/api/admin/orders')) {
+      const user = await currentUser(req);
+      if (!requireSupport(user, res)) return;
+      const rows = await searchAdminOrders(q.q);
+      send(res, 200, { orders: await attachOrders(rows) });
+      return;
+    }
+
+    const adminOrder = hit('PATCH', '/api/admin/orders/:id');
+    if (adminOrder) {
+      const user = await currentUser(req);
+      if (!requireSupport(user, res)) return;
+      const order = await findOrderById(adminOrder.id);
+      if (!order) {
+        send(res, 404, { error: 'not_found' });
+        return;
+      }
+      const body = await getBody(req);
+      const status = String(body.status || '');
+      try {
+        const next = await updateOrderStatus(order, {
+          status,
+          actorUserId: user.id,
+          source: 'support',
+          force: true,
+        });
+        await writeAudit({
+          actorUserId: user.id,
+          action: 'order.status',
+          targetType: 'order',
+          targetId: order.id,
+          payload: { status },
+        });
+        send(res, 200, { order: await attachOrder(next) });
+      } catch (err) {
+        if (!sendErr(res, err)) throw err;
+      }
+      return;
+    }
+
+    send(res, 404, { error: 'not_found', db: dbMode() });
   } catch (err) {
     console.error(err);
     send(res, 500, { error: 'server' });
-  }
-}
-
-async function restoreLeftover(order) {
-  if (order.status === 'cancelled') return;
-  const items = await list('orderItems', (i) => i.orderId === order.id);
-  for (const item of items) {
-    const dish = await findById('dishes', item.dishId);
-    if (dish) await update('dishes', dish.id, { leftover: Number(dish.leftover) + Number(item.qty) });
   }
 }

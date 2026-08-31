@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
+import { usePoll } from '../lib/poll.js';
 import { go } from '../lib/route.js';
 import { useApp, useT } from '../store/app.jsx';
 import { Button, Chip, Field, StatusChip, inputClass } from '../components/ui.jsx';
@@ -38,9 +39,12 @@ export default function Admin() {
     setOrders(o.orders || []);
   }
 
-  useEffect(() => {
-    if (app.user?.isSupport) load().catch(() => {});
-  }, [app.user]);
+  usePoll(
+    async () => {
+      await load();
+    },
+    { enabled: Boolean(app.user?.isSupport), interval: 8000 },
+  );
 
   if (!app.user?.isSupport) return null;
 

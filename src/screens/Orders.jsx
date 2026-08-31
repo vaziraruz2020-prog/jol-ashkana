@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
+import { usePoll } from '../lib/poll.js';
 import { formatMoney } from '../lib/format.js';
 import { formatDate } from '../lib/dates.js';
 import { go } from '../lib/route.js';
@@ -10,18 +11,24 @@ export default function Orders() {
   const t = useT();
   const app = useApp();
   const [orders, setOrders] = useState([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (!app.user) {
-      go('#/login');
-      return;
-    }
-    api('/orders')
-      .then((d) => setOrders(d.orders || []))
-      .catch(() => setOrders([]));
+    if (!app.user) go('#/login');
   }, [app.user]);
 
+  usePoll(
+    async () => {
+      if (!app.user) return;
+      const d = await api('/orders');
+      setOrders(d.orders || []);
+      setLoaded(true);
+    },
+    { enabled: Boolean(app.user), interval: 7000 },
+  );
+
   if (!app.user) return null;
+  if (!loaded) return <p className="text-mute">…</p>;
   if (!orders.length) {
     return <EmptyState title={t('myOrdersEmpty')} action={t('ctaDistrict')} onAction={() => go('#/catalog')} />;
   }
