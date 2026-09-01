@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { translate } from '../copy/index.js';
-import { api } from '../lib/api.js';
+import { api, fetchHealth } from '../lib/api.js';
 
 const CART_KEY = 'jol-ashkana-cart-v2';
 const LOCALE_KEY = 'jol-ashkana-locale';
@@ -30,6 +30,7 @@ export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
   const [kitchen, setKitchen] = useState(null);
   const [geo, setGeo] = useState({ countries: [], cities: [], districts: [], slots: [] });
+  const [health, setHealth] = useState(null);
   const [locale, setLocaleState] = useState(() => localStorage.getItem(LOCALE_KEY) || 'ru');
   const [countryId, setCountryId] = useState(() => loadGeoSel().countryId || 'uz');
   const [cityId, setCityId] = useState(() => loadGeoSel().cityId || null);
@@ -67,6 +68,8 @@ export function AppProvider({ children }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      const h = await fetchHealth();
+      if (!cancelled) setHealth(h);
       try {
         const g = await api('/geo');
         if (!cancelled) setGeo(g);
@@ -206,6 +209,7 @@ export function AppProvider({ children }) {
       user,
       kitchen,
       geo,
+      health,
       locale,
       countryId,
       cityId,
@@ -225,7 +229,7 @@ export function AppProvider({ children }) {
       logout,
       setKitchen,
     };
-  }, [ready, user, kitchen, geo, locale, countryId, cityId, districtId, cart, toast]);
+  }, [ready, user, kitchen, geo, health, locale, countryId, cityId, districtId, cart, toast]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

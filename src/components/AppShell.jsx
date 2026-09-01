@@ -21,6 +21,8 @@ export default function AppShell({ route, hideNav, children }) {
   const qty = cartQty(app.cart);
   const city = app.geo.cities.find((c) => c.id === app.cityId);
   const role = app.user?.isSupport ? 'support' : app.user?.activeRole || 'buyer';
+  const healthDown = app.health && app.health.ok === false;
+  const healthText = t('healthBanner').replace('{hint}', app.health?.hint || t('dbError'));
 
   const tabs = [
     { id: 'home', label: t('navHome'), hash: '#/', icon: '⌂' },
@@ -96,6 +98,12 @@ export default function AppShell({ route, hideNav, children }) {
           </div>
         </div>
       </header>
+
+      {healthDown && (
+        <div className="px-4 pt-3">
+          <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{healthText}</div>
+        </div>
+      )}
 
       <main className={hideNav ? 'px-4 pb-10 pt-4' : 'px-4 pb-28 pt-4'}>{children}</main>
 

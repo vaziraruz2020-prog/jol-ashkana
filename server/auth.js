@@ -2,9 +2,21 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 const COOKIE = 'ja_token';
+const DEV_SECRET = 'jol-ashkana-dev-secret';
 
 export function jwtSecret() {
-  return process.env.JWT_SECRET || 'jol-ashkana-dev-secret';
+  const secret = String(process.env.JWT_SECRET || '').trim();
+  if (process.env.VERCEL) {
+    if (!secret || secret === DEV_SECRET || secret === 'change-me-in-production') {
+      const err = new Error(
+        'JWT_SECRET is missing. Set a long random JWT_SECRET in Vercel Environment Variables (Production) and Redeploy.',
+      );
+      err.code = 'db_config';
+      throw err;
+    }
+    return secret;
+  }
+  return secret || DEV_SECRET;
 }
 
 export function hashPassword(password) {

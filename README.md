@@ -4,11 +4,21 @@ Home baking for tomorrow. Not a chat dump, not a 30% delivery marketplace.
 
 Guests pick a country, city and district, see tomorrow’s menu with a price and a slot, pay **cash on handover**. Bakers run a kitchen after support verifies it. One account can buy and bake.
 
+## Two environments
+
+| | Your PC (`npm run dev`) | Vercel (the live link) |
+|---|---|---|
+| App | http://localhost:5173 | `https://YOUR-APP.vercel.app` |
+| Database | PGlite files under `data/` | **Neon Postgres** via `DATABASE_URL` |
+| Accounts | Only on this computer | Only in Neon — **register again on the live site** |
+
+Local files are **not** uploaded to Neon. Deleting the Vercel project wipes env vars; you must add Neon + `JWT_SECRET` again.
+
 ## Live demo
 
 Deploy this repo to Vercel (set `DATABASE_URL` + `JWT_SECRET`). Local demo: `npm install` then `npm run dev`.
 
-Support login (local seed):
+Support login is seeded **per database** from `ADMIN_EMAIL` / `ADMIN_PASSWORD`:
 
 - email: `support@jol-ashkana.local`
 - password: `Support2025!`
@@ -52,7 +62,7 @@ npm run dev
 
 Health then returns `{ "ok": true, "db": "postgres" }`. If that URL is down, the API uses embedded Postgres instead.
 
-Import an old `data/store.json`:
+Import an old `data/store.json` (geo / JSON snapshot — not the PGlite accounts on your PC):
 
 ```bash
 npm run db:import
@@ -96,9 +106,14 @@ CIS countries with cities and districts, each with its own currency (UZS, KZT, K
 
 ## Deploy (Vercel)
 
-1. Create a Neon Postgres database.
-2. Set env: `DATABASE_URL`, `JWT_SECRET`, optional `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
-3. Deploy. First request runs migrations and seeds countries + the support user.
+1. Create a Neon Postgres database (Vercel **Storage → Create Database → Neon**).
+2. Set env for **Production** (and Preview): `DATABASE_URL` (or `POSTGRES_URL`), `JWT_SECRET` (long random string), optional `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
+3. Deploy / **Redeploy** after saving env.
+4. Open `https://YOUR-APP.vercel.app/api/health`  
+   Success: `{ "ok": true, "db": "postgres" }`.
+5. Open the site → **Create an account**. Do not expect your PC login to work here.
+
+Login is the **Log in** form (`#/login`), not `/api/login` in the address bar.
 
 ## Product notes
 

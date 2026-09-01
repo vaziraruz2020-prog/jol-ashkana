@@ -152,6 +152,11 @@ async function runSql(client, text, params = []) {
   return rowsOf(result);
 }
 
+async function runNeon(text, params = []) {
+  const result = params.length ? await neonSql(text, params) : await neonSql(text);
+  return rowsOf(result);
+}
+
 function pgliteDirs() {
   const home = process.env.LOCALAPPDATA || os.homedir();
   return [
@@ -207,10 +212,7 @@ export function dbMode() {
 
 export async function query(text, params = []) {
   if (pglite) return runSql(pglite, text, params);
-  if (neonSql) {
-    const result = params.length ? await neonSql.query(text, params) : await neonSql.query(text);
-    return rowsOf(result);
-  }
+  if (neonSql) return runNeon(text, params);
   if (!pool) throw new Error('db_not_ready');
   return runSql(pool, text, params);
 }
@@ -303,9 +305,33 @@ export async function updateRow(table, id, patch) {
   return rows[0] || null;
 }
 
+async function bulkInsert(table, rows) {
+  if (!rows.length) return;
+  const keys = Object.keys(rows[0]);
+  const cols = keys.map(toSnake).join(', ');
+  const values = [];
+  const tuples = rows.map((row, ri) => {
+    const cells = keys.map((k, ki) => {
+      values.push(row[k] === undefined ? null : row[k]);
+      return `$${ri * keys.length + ki + 1}`;
+    });
+    return `(${cells.join(', ')})`;
+  });
+  await query(
+    `INSERT INTO ${table} (${cols}) VALUES ${tuples.join(', ')} ON CONFLICT (id) DO NOTHING`,
+    values,
+  );
+}
+
 async function seedGeo() {
   const existing = isPostgres() ? await query('SELECT id FROM countries LIMIT 1') : memList('countries');
   if (existing.length) return;
+  if (isPostgres()) {
+    await bulkInsert('countries', CIS_GEO.countries);
+    await bulkInsert('cities', CIS_GEO.cities);
+    await bulkInsert('districts', CIS_GEO.districts);
+    return;
+  }
   for (const c of CIS_GEO.countries) await insertRow('countries', c);
   for (const c of CIS_GEO.cities) await insertRow('cities', c);
   for (const d of CIS_GEO.districts) await insertRow('districts', d);
