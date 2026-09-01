@@ -159,6 +159,8 @@ export const ru = {
   language: 'Язык',
   authError: 'Неверная почта или пароль',
   existsError: 'Эта почта уже зарегистрирована',
+  loginNotFoundError: 'Аккаунта с этой почтой нет',
+  loginPasswordError: 'Неверный пароль',
   passwordHint: 'Не меньше 8 символов',
   emailError: 'Проверь почту — нужен вид name@mail.com',
   dbError: 'База не подключена. На Vercel нужен DATABASE_URL (Neon) и Redeploy.',

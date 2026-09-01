@@ -19,7 +19,7 @@ export default function Auth({ mode }) {
     setError('');
     setBusy(true);
     try {
-      const path = isRegister ? '/auth/register' : '/auth/login';
+      const path = isRegister ? '/register' : '/login';
       const data = await api(path, {
         method: 'POST',
         body: isRegister
@@ -35,6 +35,8 @@ export default function Auth({ mode }) {
       const hint = err.data?.hint;
       if (code === 'blocked') setError(err.data.reason || t('blockedTitle'));
       else if (code === 'exists') setError(t('existsError'));
+      else if (code === 'not_found') setError(t('loginNotFoundError'));
+      else if (code === 'bad_password') setError(t('loginPasswordError'));
       else if (code === 'password') setError(t('passwordHint'));
       else if (code === 'name') setError(t('nameError'));
       else if (code === 'email') setError(t('emailError'));

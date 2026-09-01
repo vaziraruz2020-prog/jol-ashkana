@@ -137,12 +137,21 @@ async function getBody(req) {
 }
 
 function pathnameOf(req) {
+  const q = req.query;
+  if (q?.path != null) {
+    const parts = Array.isArray(q.path) ? q.path : String(q.path).split('/');
+    const joined = parts.filter(Boolean).join('/');
+    if (joined) return `/api/${joined}`;
+  }
   const raw = req.url || '/';
   let path = raw.split('?')[0];
   try {
     if (/^https?:\/\//i.test(raw)) path = new URL(raw).pathname;
   } catch {
     /* keep path */
+  }
+  if (path.includes('[...') || path.includes('[[...')) {
+    path = '/api';
   }
   if (path.startsWith('/api')) return path;
   return `/api${path.startsWith('/') ? path : `/${path}`}`;
@@ -265,7 +274,7 @@ export async function handle(req, res) {
       return;
     }
 
-    if (hit('POST', '/api/auth/register')) {
+    if (hit('POST', '/api/auth/register') || hit('POST', '/api/register')) {
       const body = await getBody(req);
       const email = String(body.email || '').toLowerCase().trim();
       const password = String(body.password || '');
@@ -309,13 +318,17 @@ export async function handle(req, res) {
       return;
     }
 
-    if (hit('POST', '/api/auth/login')) {
+    if (hit('POST', '/api/auth/login') || hit('POST', '/api/login')) {
       const body = await getBody(req);
       const email = String(body.email || '').toLowerCase().trim();
       const password = String(body.password || '');
       const user = await findUserByEmail(email);
-      if (!user || !checkPassword(password, user.passwordHash)) {
-        send(res, 401, { error: 'credentials' });
+      if (!user) {
+        send(res, 404, { error: 'not_found' });
+        return;
+      }
+      if (!checkPassword(password, user.passwordHash)) {
+        send(res, 401, { error: 'bad_password' });
         return;
       }
       if (flag(user.blocked)) {
@@ -326,7 +339,7 @@ export async function handle(req, res) {
       return;
     }
 
-    if (hit('POST', '/api/auth/logout')) {
+    if (hit('POST', '/api/auth/logout') || hit('POST', '/api/logout')) {
       send(res, 200, { ok: true }, { 'Set-Cookie': cookieHeader('', true) });
       return;
     }

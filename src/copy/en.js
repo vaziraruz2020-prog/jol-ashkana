@@ -159,6 +159,8 @@ export const en = {
   language: 'Language',
   authError: 'Wrong email or password',
   existsError: 'This email is already registered',
+  loginNotFoundError: 'No account with this email',
+  loginPasswordError: 'Wrong password',
   passwordHint: 'At least 8 characters',
   emailError: 'Check the email — use name@mail.com',
   dbError: 'Database is not connected. On Vercel add DATABASE_URL (Neon) and Redeploy.',

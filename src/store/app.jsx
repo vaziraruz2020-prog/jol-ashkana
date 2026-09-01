@@ -196,7 +196,7 @@ export function AppProvider({ children }) {
 
     async function logout() {
       try {
-        await api('/auth/logout', { method: 'POST', body: {} });
+        await api('/logout', { method: 'POST', body: {} });
       } catch {
         /* ignore */
       }
