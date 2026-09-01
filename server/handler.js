@@ -78,31 +78,59 @@ function matchRoute(method, pattern, reqMethod, pathname) {
   return params;
 }
 
+function parseJson(raw) {
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
 function readRawBody(req) {
   return new Promise((resolve, reject) => {
+    if (req.readableEnded || req.complete) {
+      resolve('');
+      return;
+    }
     let data = '';
-    req.on('data', (c) => {
+    const timer = setTimeout(() => {
+      req.removeListener('data', onData);
+      req.removeListener('end', onEnd);
+      req.removeListener('error', onErr);
+      resolve(data);
+    }, 4000);
+    function done(value, err) {
+      clearTimeout(timer);
+      req.removeListener('data', onData);
+      req.removeListener('end', onEnd);
+      req.removeListener('error', onErr);
+      if (err) reject(err);
+      else resolve(value);
+    }
+    function onData(c) {
       data += c;
-      if (data.length > 1_000_000) reject(new Error('too large'));
-    });
-    req.on('end', () => resolve(data));
-    req.on('error', reject);
+      if (data.length > 1_000_000) done('', new Error('too large'));
+    }
+    function onEnd() {
+      done(data);
+    }
+    function onErr(err) {
+      done('', err);
+    }
+    req.on('data', onData);
+    req.on('end', onEnd);
+    req.on('error', onErr);
   });
 }
 
 async function getBody(req) {
-  if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) return req.body;
-  if (typeof req.body === 'string') {
-    try {
-      return JSON.parse(req.body);
-    } catch {
-      return {};
-    }
-  }
-  const raw = await readRawBody(req);
-  if (!raw) return {};
+  if (Buffer.isBuffer(req.body)) return parseJson(req.body.toString('utf8'));
+  if (typeof req.body === 'string') return parseJson(req.body);
+  if (req.body && typeof req.body === 'object') return req.body;
   try {
-    return JSON.parse(raw);
+    const raw = await readRawBody(req);
+    return parseJson(raw);
   } catch {
     return {};
   }
@@ -118,6 +146,18 @@ function pathnameOf(req) {
   }
   if (path.startsWith('/api')) return path;
   return `/api${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+function sessionCookie(userId) {
+  try {
+    return cookieHeader(signToken(userId));
+  } catch (err) {
+    const e = new Error(
+      err.message || 'JWT_SECRET is missing. Set it in Vercel Environment Variables (Production) and Redeploy.',
+    );
+    e.code = err.code || 'jwt_config';
+    throw e;
+  }
 }
 
 async function currentUser(req) {
@@ -166,8 +206,9 @@ function sendErr(res, err) {
 }
 
 function sendDbDown(res, err) {
+  const code = err?.code === 'db_config' || err?.code === 'jwt_config' ? err.code : 'db';
   send(res, 503, {
-    error: err?.code === 'db_config' ? 'db_config' : 'db',
+    error: code,
     hint: err?.message || 'Database is not configured',
   });
 }
@@ -264,7 +305,7 @@ export async function handle(req, res) {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
-      send(res, 201, await mePayload(user), { 'Set-Cookie': cookieHeader(signToken(user.id)) });
+      send(res, 201, await mePayload(user), { 'Set-Cookie': sessionCookie(user.id) });
       return;
     }
 
@@ -281,7 +322,7 @@ export async function handle(req, res) {
         send(res, 403, { error: 'blocked', reason: user.blockedReason || '' });
         return;
       }
-      send(res, 200, await mePayload(user), { 'Set-Cookie': cookieHeader(signToken(user.id)) });
+      send(res, 200, await mePayload(user), { 'Set-Cookie': sessionCookie(user.id) });
       return;
     }
 
@@ -760,19 +801,7 @@ export async function handle(req, res) {
       const body = await getBody(req);
       const status = String(body.status || '');
       try {
-        const next = await updateOrderStatus(order, {
-          status,
-          actorUserId: user.id,
-          source: 'support',
-          force: true,
-        });
-        await writeAudit({
-          actorUserId: user.id,
-          action: 'order.status',
-          targetType: 'order',
-          targetId: order.id,
-          payload: { status },
-        });
+        const next = await updateOrderStatus(order, { status, actorUserId: user.id, source: 'support' });
         send(res, 200, { order: await attachOrder(next) });
       } catch (err) {
         if (!sendErr(res, err)) throw err;
@@ -780,10 +809,24 @@ export async function handle(req, res) {
       return;
     }
 
-    send(res, 404, { error: 'not_found', db: dbMode() });
+    if (method === 'GET' && (pathname === '/api' || pathname === '/api/')) {
+      send(res, 200, {
+        ok: true,
+        app: 'JOL-Ashkana API',
+        db: dbMode(),
+        open: 'http://localhost:5173',
+      });
+      return;
+    }
+
+    send(res, 404, { error: 'not_found' });
   } catch (err) {
-    if (sendErr(res, err)) return;
     console.error(err);
-    send(res, 500, { error: 'server', hint: err?.message || 'API crashed' });
+    const code = err?.code;
+    if (code === 'jwt_config' || code === 'db_config' || code === 'db') {
+      send(res, 503, { error: code, hint: err.message || 'Config error' });
+      return;
+    }
+    send(res, 500, { error: 'server', hint: err?.message || 'Server error' });
   }
 }

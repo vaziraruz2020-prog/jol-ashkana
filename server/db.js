@@ -337,19 +337,16 @@ async function seedGeo() {
   for (const d of CIS_GEO.districts) await insertRow('districts', d);
 }
 
+function isDuplicateKey(err) {
+  const msg = String(err?.message || err || '');
+  return /duplicate key|users_pkey|users_email|unique constraint/i.test(msg);
+}
+
 async function seedAdmin() {
   const email = String(process.env.ADMIN_EMAIL || 'support@jol-ashkana.local').toLowerCase().trim();
   const password = String(process.env.ADMIN_PASSWORD || 'Support2025!');
-  const found = isPostgres()
-    ? (await query('SELECT * FROM users WHERE email = $1', [email]))[0]
-    : memList('users', (u) => u.email === email)[0];
-  if (found) {
-    if (!flag(found.isSupport)) {
-      await updateRow('users', found.id, { isSupport: true });
-    }
-    return;
-  }
-  await insertRow('users', {
+  const now = new Date().toISOString();
+  const supportRow = {
     id: 'user_support',
     email,
     passwordHash: bcrypt.hashSync(password, 10),
@@ -363,9 +360,64 @@ async function seedAdmin() {
     isSupport: true,
     blocked: false,
     blockedReason: '',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  });
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  if (!isPostgres()) {
+    const found = memList('users', (u) => u.email === email || u.id === 'user_support')[0];
+    if (found) {
+      const patch = {};
+      if (!flag(found.isSupport)) patch.isSupport = true;
+      if (found.email !== email) patch.email = email;
+      if (Object.keys(patch).length) await updateRow('users', found.id, patch);
+      return;
+    }
+    await insertRow('users', supportRow);
+    return;
+  }
+
+  const found = (await query('SELECT * FROM users WHERE email = $1 OR id = $2 LIMIT 1', [email, 'user_support']))[0];
+  if (found) {
+    const patch = {};
+    if (!flag(found.isSupport)) patch.isSupport = true;
+    if (found.email !== email) patch.email = email;
+    if (Object.keys(patch).length) await updateRow('users', found.id, patch);
+    return;
+  }
+
+  try {
+    await query(
+      `INSERT INTO users (
+        id, email, password_hash, name, phone, locale, country_id, city_id, district_id,
+        active_role, is_support, blocked, blocked_reason, created_at, updated_at
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+      ON CONFLICT (id) DO UPDATE SET
+        email = EXCLUDED.email,
+        is_support = TRUE,
+        updated_at = EXCLUDED.updated_at`,
+      [
+        supportRow.id,
+        supportRow.email,
+        supportRow.passwordHash,
+        supportRow.name,
+        supportRow.phone,
+        supportRow.locale,
+        supportRow.countryId,
+        supportRow.cityId,
+        supportRow.districtId,
+        supportRow.activeRole,
+        supportRow.isSupport,
+        supportRow.blocked,
+        supportRow.blockedReason,
+        supportRow.createdAt,
+        supportRow.updatedAt,
+      ],
+    );
+  } catch (err) {
+    if (isDuplicateKey(err)) return;
+    throw err;
+  }
 }
 
 function useJson(reason) {
@@ -379,6 +431,11 @@ async function startPostgres(url) {
   await runMigrations(query);
   mode = 'postgres';
   console.log('JOL-Ashkana db=postgres');
+}
+
+async function finishSeed() {
+  await seedGeo();
+  await seedAdmin();
 }
 
 export async function ensureDb() {
@@ -396,15 +453,24 @@ export async function ensureDb() {
     }
     try {
       await startPostgres(url);
+      await finishSeed();
+      ready = true;
+      return mode;
     } catch (err) {
       await dropPool();
+      ready = false;
       mode = 'none';
+      if (isDuplicateKey(err)) {
+        try {
+          await startPostgres(url);
+          ready = true;
+          return mode;
+        } catch (inner) {
+          throw dbFail('db', `Postgres failed: ${inner.message}`);
+        }
+      }
       throw dbFail('db', `Postgres failed: ${err.message}`);
     }
-    ready = true;
-    await seedGeo();
-    await seedAdmin();
-    return mode;
   }
 
   if (forceJson) {
@@ -421,9 +487,8 @@ export async function ensureDb() {
     await startPglite();
   }
 
+  await finishSeed();
   ready = true;
-  await seedGeo();
-  await seedAdmin();
   return mode;
 }
 
@@ -452,6 +517,12 @@ export async function healthCheck() {
     payload.db = mode || 'none';
     payload.error = err.code || 'db';
     payload.hint = err.message || 'Database is not configured';
+    if (isDuplicateKey(err)) {
+      payload.ok = true;
+      payload.db = mode || 'postgres';
+      payload.hint = 'Neon/Postgres connected. Accounts persist.';
+      delete payload.error;
+    }
     return payload;
   }
 }

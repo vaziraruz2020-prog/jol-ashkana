@@ -15,20 +15,41 @@ export async function api(path, { method = 'GET', body } = {}) {
   }
 
   const text = await res.text();
+  const trimmed = (text || '').trim();
+  const looksJson = trimmed.startsWith('{') || trimmed.startsWith('[');
   let data = {};
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    const err = new Error('api_missing');
-    err.status = res.status;
-    err.data = { error: 'api_missing' };
-    throw err;
+  if (looksJson) {
+    try {
+      data = JSON.parse(trimmed);
+    } catch {
+      data = {};
+    }
   }
 
   if (!res.ok) {
+    if (!looksJson) {
+      const isMissing = res.status === 404;
+      const err = new Error(isMissing ? 'api_missing' : 'server');
+      err.status = res.status;
+      err.data = {
+        error: isMissing ? 'api_missing' : 'server',
+        hint:
+          res.status >= 500
+            ? 'The API crashed. Set JWT_SECRET in Vercel (Production), then Redeploy.'
+            : 'API returned a web page instead of JSON.',
+      };
+      throw err;
+    }
     const err = new Error(data.error || 'error');
     err.status = res.status;
     err.data = data;
+    throw err;
+  }
+
+  if (!looksJson) {
+    const err = new Error('api_missing');
+    err.status = res.status;
+    err.data = { error: 'api_missing' };
     throw err;
   }
   return data;
@@ -38,7 +59,9 @@ export async function fetchHealth() {
   try {
     const res = await fetch('/api/health', { credentials: 'include' });
     const text = await res.text();
-    const data = text ? JSON.parse(text) : {};
+    const trimmed = (text || '').trim();
+    if (!trimmed.startsWith('{')) return { ok: false, error: 'network', hint: '' };
+    const data = JSON.parse(trimmed);
     return data && typeof data === 'object' ? data : { ok: false };
   } catch {
     return { ok: false, error: 'network', hint: '' };

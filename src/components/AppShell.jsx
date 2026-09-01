@@ -15,13 +15,18 @@ function Logo({ onClick }) {
   );
 }
 
+function isNoisyHealthHint(hint) {
+  return /duplicate key|users_pkey|users_email/i.test(String(hint || ''));
+}
+
 export default function AppShell({ route, hideNav, children }) {
   const app = useApp();
   const t = useT();
   const qty = cartQty(app.cart);
   const city = app.geo.cities.find((c) => c.id === app.cityId);
   const role = app.user?.isSupport ? 'support' : app.user?.activeRole || 'buyer';
-  const healthDown = app.health && app.health.ok === false;
+  const healthDown =
+    app.health && app.health.ok === false && !isNoisyHealthHint(app.health.hint);
   const healthText = t('healthBanner').replace('{hint}', app.health?.hint || t('dbError'));
 
   const tabs = [

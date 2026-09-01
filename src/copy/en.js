@@ -162,7 +162,7 @@ export const en = {
   passwordHint: 'At least 8 characters',
   emailError: 'Check the email — use name@mail.com',
   dbError: 'Database is not connected. On Vercel add DATABASE_URL (Neon) and Redeploy.',
-  serverError: 'The API did not answer. Open /api/health. On Vercel, push this code and Redeploy.',
+  serverError: 'The API crashed. Push this code, set JWT_SECRET, Redeploy, then register on the live site.',
   apiMissingError: 'API route is missing. Redeploy so /api/* is live.',
   networkError: 'No connection to the server.',
   healthBanner: 'Database is down. {hint}',

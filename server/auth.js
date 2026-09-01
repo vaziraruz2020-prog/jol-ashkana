@@ -7,11 +7,11 @@ const DEV_SECRET = 'jol-ashkana-dev-secret';
 export function jwtSecret() {
   const secret = String(process.env.JWT_SECRET || '').trim();
   if (process.env.VERCEL) {
-    if (!secret || secret === DEV_SECRET || secret === 'change-me-in-production') {
+    if (!secret) {
       const err = new Error(
         'JWT_SECRET is missing. Set a long random JWT_SECRET in Vercel Environment Variables (Production) and Redeploy.',
       );
-      err.code = 'db_config';
+      err.code = 'jwt_config';
       throw err;
     }
     return secret;

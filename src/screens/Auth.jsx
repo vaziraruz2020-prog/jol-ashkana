@@ -38,9 +38,10 @@ export default function Auth({ mode }) {
       else if (code === 'password') setError(t('passwordHint'));
       else if (code === 'name') setError(t('nameError'));
       else if (code === 'email') setError(t('emailError'));
-      else if (code === 'db' || code === 'db_config' || err.status === 503) setError(hint || t('dbError'));
-      else if (err.status === 401) setError(t('authError'));
-      else if (code === 'api_missing' || err.status === 404) setError(t('apiMissingError'));
+      else if (code === 'db' || code === 'db_config' || code === 'jwt_config' || err.status === 503) {
+        setError(hint || t('dbError'));
+      } else if (err.status === 401) setError(t('authError'));
+      else if (code === 'api_missing' && err.status === 404) setError(t('apiMissingError'));
       else if (code === 'network' || err.status === 0) setError(t('networkError'));
       else setError(hint || t('serverError'));
     } finally {
