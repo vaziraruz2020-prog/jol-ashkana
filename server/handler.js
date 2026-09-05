@@ -303,6 +303,7 @@ export async function handle(req, res) {
     const method = req.method || 'GET';
     const q = queryOf(req);
     const hit = (m, p) => matchRoute(m, p, method, pathname);
+    const hitWrite = (p) => hit('PATCH', p) || hit('POST', p);
 
     if (hit('GET', '/api/health') || pathname === '/api/health' || pathname.endsWith('/health')) {
       try {
@@ -745,7 +746,7 @@ export async function handle(req, res) {
       return;
     }
 
-    const adminKitchen = hit('PATCH', '/api/admin/kitchens/:id');
+    const adminKitchen = hitWrite('/api/admin/kitchens/:id');
     if (adminKitchen) {
       const user = await currentUser(req);
       if (!requireSupport(user, res)) return;
@@ -789,7 +790,7 @@ export async function handle(req, res) {
       return;
     }
 
-    const adminUser = hit('PATCH', '/api/admin/users/:id');
+    const adminUser = hitWrite('/api/admin/users/:id');
     if (adminUser) {
       const user = await currentUser(req);
       if (!requireSupport(user, res)) return;
@@ -830,7 +831,7 @@ export async function handle(req, res) {
       return;
     }
 
-    const adminTicket = hit('PATCH', '/api/admin/tickets/:id');
+    const adminTicket = hitWrite('/api/admin/tickets/:id');
     if (adminTicket) {
       const user = await currentUser(req);
       if (!requireSupport(user, res)) return;
@@ -865,7 +866,7 @@ export async function handle(req, res) {
       return;
     }
 
-    const adminOrder = hit('PATCH', '/api/admin/orders/:id');
+    const adminOrder = hitWrite('/api/admin/orders/:id');
     if (adminOrder) {
       const user = await currentUser(req);
       if (!requireSupport(user, res)) return;

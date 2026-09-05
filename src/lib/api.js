@@ -28,15 +28,14 @@ export async function api(path, { method = 'GET', body } = {}) {
 
   if (!res.ok) {
     if (!looksJson) {
-      const isMissing = res.status === 404;
+      const isMissing = res.status < 500;
       const err = new Error(isMissing ? 'api_missing' : 'server');
       err.status = res.status;
       err.data = {
         error: isMissing ? 'api_missing' : 'server',
-        hint:
-          res.status >= 500
-            ? 'The API crashed. Set JWT_SECRET in Vercel (Production), then Redeploy.'
-            : 'API returned a web page instead of JSON.',
+        hint: isMissing
+          ? 'API route missing. Redeploy the project.'
+          : 'The API crashed. Set JWT_SECRET in Vercel (Production), then Redeploy.',
       };
       throw err;
     }
@@ -49,7 +48,7 @@ export async function api(path, { method = 'GET', body } = {}) {
   if (!looksJson) {
     const err = new Error('api_missing');
     err.status = res.status;
-    err.data = { error: 'api_missing' };
+    err.data = { error: 'api_missing', hint: 'API route missing. Redeploy the project.' };
     throw err;
   }
   return data;

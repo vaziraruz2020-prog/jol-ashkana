@@ -45,7 +45,10 @@ export default function Admin() {
     const code = err?.data?.error || err?.message;
     if (code === 'network' || err?.status === 0) return t('networkError');
     if (code === 'auth') return t('authError');
-    return err?.data?.hint || t('adminActionFailed');
+    if (code === 'api_missing') return t('apiMissingError');
+    if (code === 'server') return t('serverError');
+    if (code === 'fields') return t('adminFieldsError');
+    return t('adminActionFailed');
   }
 
   async function runAction(id, request, onOk, okMessage) {
@@ -110,7 +113,7 @@ export default function Admin() {
                   onClick={() =>
                     runAction(
                       `kit-verify-${k.id}`,
-                      () => api(`/admin/kitchens/${k.id}`, { method: 'PATCH', body: { verificationStatus: 'verified' } }),
+                      () => api(`/admin/kitchens/${k.id}`, { method: 'POST', body: { verificationStatus: 'verified' } }),
                       (data) => {
                         if (data.kitchen) {
                           setKitchens((prev) => prev.map((row) => (row.id === k.id ? data.kitchen : row)));
@@ -130,7 +133,7 @@ export default function Admin() {
                       `kit-reject-${k.id}`,
                       () =>
                         api(`/admin/kitchens/${k.id}`, {
-                          method: 'PATCH',
+                          method: 'POST',
                           body: { verificationStatus: 'rejected', verificationNote: note },
                         }),
                       (data) => {
@@ -150,7 +153,7 @@ export default function Admin() {
                   onClick={() =>
                     runAction(
                       `kit-hide-${k.id}`,
-                      () => api(`/admin/kitchens/${k.id}`, { method: 'PATCH', body: { hidden: !k.hidden } }),
+                      () => api(`/admin/kitchens/${k.id}`, { method: 'POST', body: { hidden: !k.hidden } }),
                       (data) => {
                         if (data.kitchen) {
                           setKitchens((prev) => prev.map((row) => (row.id === k.id ? data.kitchen : row)));
@@ -195,7 +198,7 @@ export default function Admin() {
                     onClick={() =>
                       runAction(
                         `ord-${o.id}`,
-                        () => api(`/admin/orders/${o.id}`, { method: 'PATCH', body: { status: 'cancelled' } }),
+                        () => api(`/admin/orders/${o.id}`, { method: 'POST', body: { status: 'cancelled' } }),
                         (data) => {
                           if (data.order) {
                             setOrders((prev) => prev.map((row) => (row.id === o.id ? data.order : row)));
@@ -232,7 +235,7 @@ export default function Admin() {
                     onClick={() =>
                       runAction(
                         `tkt-${ticket.id}-${st}`,
-                        () => api(`/admin/tickets/${ticket.id}`, { method: 'PATCH', body: { status: st } }),
+                        () => api(`/admin/tickets/${ticket.id}`, { method: 'POST', body: { status: st } }),
                         (data) => {
                           if (data.ticket) {
                             setTickets((prev) => prev.map((row) => (row.id === ticket.id ? data.ticket : row)));
@@ -270,12 +273,16 @@ export default function Admin() {
                   <Button
                     variant={u.blocked ? 'fresh' : 'danger'}
                     disabled={Boolean(busyId)}
-                    onClick={() =>
+                    onClick={() => {
+                      if (!u.blocked && !String(note).trim()) {
+                        app.notify(t('blockReasonRequired'));
+                        return;
+                      }
                       runAction(
                         `usr-${u.id}`,
                         () =>
                           api(`/admin/users/${u.id}`, {
-                            method: 'PATCH',
+                            method: 'POST',
                             body: { blocked: !u.blocked, reason: note },
                           }),
                         (data) => {
@@ -284,8 +291,8 @@ export default function Admin() {
                           }
                         },
                         u.blocked ? t('adminUnblocked') : t('adminBlocked'),
-                      )
-                    }
+                      );
+                    }}
                   >
                     {u.blocked ? t('adminUnblock') : t('adminBlock')}
                   </Button>
