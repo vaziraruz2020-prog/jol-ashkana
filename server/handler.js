@@ -89,7 +89,7 @@ function parseJson(raw) {
 
 function readRawBody(req) {
   return new Promise((resolve, reject) => {
-    if (req.readableEnded || req.complete) {
+    if (req.readableEnded) {
       resolve('');
       return;
     }
@@ -136,25 +136,66 @@ async function getBody(req) {
   }
 }
 
-function pathnameOf(req) {
+function catchAllParts(req) {
   const q = req.query;
-  if (q?.path != null) {
-    const parts = Array.isArray(q.path) ? q.path : String(q.path).split('/');
-    const joined = parts.filter(Boolean).join('/');
-    if (joined) return `/api/${joined}`;
-  }
-  const raw = req.url || '/';
+  if (q?.path == null) return [];
+  const parts = Array.isArray(q.path) ? q.path : String(q.path).split('/');
+  return parts.map((p) => String(p)).filter(Boolean);
+}
+
+function folderPrefixFromPath(path) {
+  if (/\/admin(\/|$)/.test(path)) return '/api/admin';
+  if (/\/auth(\/|$)/.test(path)) return '/api/auth';
+  if (/\/kitchens(\/|$)/.test(path)) return '/api/kitchens';
+  if (/\/orders(\/|$)/.test(path)) return '/api/orders';
+  if (/\/my(\/|$)/.test(path)) return '/api/my';
+  return '/api';
+}
+
+function headerPathOf(req) {
+  const headers = req.headers || {};
+  return String(headers['x-invoke-path'] || headers['x-vercel-original-path'] || headers['x-matched-path'] || '')
+    .split('?')[0];
+}
+
+function pathnameOf(req) {
+  const raw = String(req.url || '/');
   let path = raw.split('?')[0];
   try {
     if (/^https?:\/\//i.test(raw)) path = new URL(raw).pathname;
   } catch {
     /* keep path */
   }
-  if (path.includes('[...') || path.includes('[[...')) {
-    path = '/api';
+
+  const headerPath = headerPathOf(req);
+  if (headerPath.startsWith('/api/') && !headerPath.includes('[...')) return headerPath;
+
+  const isPlaceholder = path.includes('[...') || path.includes('[[...');
+  if (path.startsWith('/api/') && !isPlaceholder) return path;
+  if ((path === '/api' || path === '/api/') && !isPlaceholder) return '/api';
+
+  const rest = catchAllParts(req).join('/');
+  let prefix = '/api';
+  if (isPlaceholder) {
+    prefix = folderPrefixFromPath(path);
+    if (prefix === '/api' && headerPath) prefix = folderPrefixFromPath(headerPath);
+  } else if (path.startsWith('/api')) {
+    return path;
   }
-  if (path.startsWith('/api')) return path;
-  return `/api${path.startsWith('/') ? path : `/${path}`}`;
+
+  if (rest) return `${prefix}/${rest}`;
+  return prefix;
+}
+
+function queryOf(req) {
+  const url = new URL(req.url || '/', 'http://localhost');
+  const fromUrl = Object.fromEntries(url.searchParams.entries());
+  const fromReq = {};
+  for (const [key, val] of Object.entries(req.query || {})) {
+    if (key === 'path') continue;
+    if (typeof val === 'string') fromReq[key] = val;
+  }
+  return { ...fromReq, ...fromUrl };
 }
 
 function sessionCookie(userId) {
@@ -235,6 +276,21 @@ function healthPayload(err) {
   };
 }
 
+async function safeAudit(entry) {
+  try {
+    await writeAudit(entry);
+  } catch (err) {
+    console.error('audit_failed', err);
+  }
+}
+
+function parseBlocked(body) {
+  if (typeof body.blocked === 'boolean') return body.blocked;
+  if (body.blocked === 'true' || body.blocked === 1 || body.blocked === '1') return true;
+  if (body.blocked === 'false' || body.blocked === 0 || body.blocked === '0') return false;
+  return null;
+}
+
 export async function handle(req, res) {
   try {
     if (req.method === 'OPTIONS') {
@@ -245,8 +301,7 @@ export async function handle(req, res) {
 
     const pathname = pathnameOf(req);
     const method = req.method || 'GET';
-    const url = new URL(req.url || '/', 'http://localhost');
-    const q = Object.fromEntries(url.searchParams.entries());
+    const q = queryOf(req);
     const hit = (m, p) => matchRoute(m, p, method, pathname);
 
     if (hit('GET', '/api/health') || pathname === '/api/health' || pathname.endsWith('/health')) {
@@ -701,13 +756,21 @@ export async function handle(req, res) {
       }
       const body = await getBody(req);
       const patch = {};
-      if (body.verificationStatus === 'verified' || body.verificationStatus === 'rejected' || body.verificationStatus === 'pending') {
+      if (
+        body.verificationStatus === 'verified' ||
+        body.verificationStatus === 'rejected' ||
+        body.verificationStatus === 'pending'
+      ) {
         patch.verificationStatus = body.verificationStatus;
       }
       if (typeof body.verificationNote === 'string') patch.verificationNote = body.verificationNote;
       if (body.hidden != null) patch.hidden = Boolean(body.hidden);
+      if (patch.verificationStatus == null && patch.hidden == null) {
+        send(res, 400, { error: 'fields' });
+        return;
+      }
       const next = await updateKitchen(kitchen.id, patch);
-      await writeAudit({
+      await safeAudit({
         actorUserId: user.id,
         action: 'kitchen.patch',
         targetType: 'kitchen',
@@ -740,12 +803,16 @@ export async function handle(req, res) {
         return;
       }
       const body = await getBody(req);
-      const blocked = Boolean(body.blocked);
+      const blocked = parseBlocked(body);
+      if (blocked == null) {
+        send(res, 400, { error: 'fields' });
+        return;
+      }
       const next = await updateUser(target.id, {
         blocked,
         blockedReason: blocked ? String(body.reason || '') : '',
       });
-      await writeAudit({
+      await safeAudit({
         actorUserId: user.id,
         action: blocked ? 'user.block' : 'user.unblock',
         targetType: 'user',
@@ -779,7 +846,7 @@ export async function handle(req, res) {
         return;
       }
       const next = await updateTicket(ticket.id, { status });
-      await writeAudit({
+      await safeAudit({
         actorUserId: user.id,
         action: 'ticket.status',
         targetType: 'ticket',
@@ -809,8 +876,24 @@ export async function handle(req, res) {
       }
       const body = await getBody(req);
       const status = String(body.status || '');
+      if (status !== 'cancelled') {
+        send(res, 400, { error: 'status' });
+        return;
+      }
       try {
-        const next = await updateOrderStatus(order, { status, actorUserId: user.id, source: 'support' });
+        const next = await updateOrderStatus(order, {
+          status,
+          actorUserId: user.id,
+          source: 'support',
+          force: true,
+        });
+        await safeAudit({
+          actorUserId: user.id,
+          action: 'order.cancel',
+          targetType: 'order',
+          targetId: order.id,
+          payload: { status },
+        });
         send(res, 200, { order: await attachOrder(next) });
       } catch (err) {
         if (!sendErr(res, err)) throw err;
