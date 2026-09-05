@@ -30,6 +30,8 @@ export function cartQty(cart) {
   return (cart || []).reduce((sum, item) => sum + (item.qty || 0), 0);
 }
 
+export const cartCount = cartQty;
+
 export function cartTotal(cart) {
   return (cart || []).reduce((sum, item) => sum + (Number(item.price) || 0) * item.qty, 0);
 }
