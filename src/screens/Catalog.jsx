@@ -3,7 +3,7 @@ import { api } from '../lib/api.js';
 import { geoName } from '../copy/index.js';
 import { go } from '../lib/route.js';
 import { useApp, useT } from '../store/app.jsx';
-import { Chip, ChipRow, EmptyState, KitchenCard, Reveal } from '../components/ui.jsx';
+import { Chip, ChipRow, EmptyState, FoodTile, KitchenCard, Reveal } from '../components/ui.jsx';
 
 export default function Catalog() {
   const t = useT();
@@ -37,6 +37,7 @@ export default function Catalog() {
   }, [app.countryId, app.cityId, app.districtId]);
 
   const visible = kitchens.filter((k) => k.verificationStatus === 'verified' && !k.hidden);
+  const peek = visible.slice(0, 6);
 
   return (
     <div className="space-y-4">
@@ -77,6 +78,37 @@ export default function Catalog() {
             go('#/cabinet/kitchen');
           }}
         />
+      )}
+
+      {peek.length > 0 && (
+        <div className="-mx-4">
+          <p className="mb-2 px-4 text-xs font-bold uppercase tracking-[0.18em] text-mute">{t('tomorrowStrip')}</p>
+          <div className="snap-strip no-scrollbar flex gap-3 overflow-x-auto px-4 pb-1">
+            {peek.map((k) => (
+              <button
+                key={`peek-${k.id}`}
+                type="button"
+                onClick={() => go(`#/baker/${k.id}`)}
+                className="w-[min(72%,260px)] shrink-0 overflow-hidden rounded-cut bg-white text-left shadow-card transition duration-200 hover:shadow-lift active:scale-[0.99]"
+              >
+                <div className="flex items-center gap-3 p-3">
+                  <FoodTile
+                    emoji={k.emoji || '🥐'}
+                    accent={k.accent}
+                    className="rounded-cut"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate font-extrabold tracking-tight">{k.name}</p>
+                    <p className="mt-0.5 truncate text-[11px] font-semibold uppercase tracking-[0.14em] text-mute">
+                      {t('cutoffOk').replace('{hour}', String(k.cutoffHour))}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            ))}
+            <div className="w-3 shrink-0" aria-hidden="true" />
+          </div>
+        </div>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">

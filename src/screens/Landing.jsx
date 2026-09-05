@@ -104,16 +104,17 @@ export default function Landing() {
           {user ? (
             <Button
               variant="ghost"
+              pill
               onClick={() => go(user.activeRole === 'baker' ? '#/cabinet' : '#/account')}
             >
               {user.activeRole === 'baker' ? t('cabinetTitle') : t('accountTitle')}
             </Button>
           ) : (
             <div className="grid grid-cols-2 gap-3">
-              <Button variant="ghost" onClick={() => go('#/login')}>
+              <Button variant="ghost" pill onClick={() => go('#/login')}>
                 {t('ctaLogin')}
               </Button>
-              <Button variant="ghost" onClick={() => go('#/register')}>
+              <Button variant="ghost" pill onClick={() => go('#/register')}>
                 {t('ctaRegister')}
               </Button>
             </div>

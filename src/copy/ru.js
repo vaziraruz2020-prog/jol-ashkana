@@ -41,6 +41,8 @@ export const ru = {
   pickDistrictFirst: 'Сначала выбери страну, город и район',
   emptyDistrict: 'В этом районе пока нет кухонь. Стань первым пекарем.',
   beFirstBaker: 'Открыть кухню',
+  tomorrowStrip: 'Завтра рядом',
+  availableStrip: 'На завтра',
   cutoffLate: 'Приём до {hour}:00. Уже поздно — заказ уйдёт на послезавтра.',
   cutoffOk: 'Приём до {hour}:00',
   cartOtherBaker: 'В корзине блюда другой кухни. Заменить?',

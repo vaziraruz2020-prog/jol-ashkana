@@ -41,6 +41,8 @@ export const en = {
   pickDistrictFirst: 'Pick a country, city and district first',
   emptyDistrict: 'No kitchens in this district yet. Be the first baker.',
   beFirstBaker: 'Open a kitchen',
+  tomorrowStrip: 'Tomorrow nearby',
+  availableStrip: 'On tomorrow’s menu',
   cutoffLate: 'Orders close at {hour}:00. It’s late — this order goes to the day after tomorrow.',
   cutoffOk: 'Orders until {hour}:00',
   cartOtherBaker: 'Your cart has dishes from another kitchen. Replace?',
