@@ -51,8 +51,8 @@ export default function Auth({ mode }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="mx-auto max-w-md space-y-4 rounded-[28px] bg-white p-6 shadow-card">
-      <h1 className="text-2xl font-extrabold">{isRegister ? t('registerTitle') : t('loginTitle')}</h1>
+    <form onSubmit={onSubmit} className="card-cut mx-auto max-w-md space-y-4 bg-white p-6">
+      <h1 className="text-2xl font-extrabold tracking-tight">{isRegister ? t('registerTitle') : t('loginTitle')}</h1>
       <p className="text-sm text-mute">{isRegister ? t('registerHint') : t('loginHint')}</p>
       {isRegister && (
         <Field label={t('name')}>
@@ -78,7 +78,7 @@ export default function Auth({ mode }) {
       </Button>
       <button
         type="button"
-        className="w-full text-center text-sm font-bold text-primary"
+        className="w-full text-center text-sm font-bold text-primary transition hover:text-primary-dark"
         onClick={() => go(isRegister ? '#/login' : '#/register')}
       >
         {isRegister ? t('hasAccount') : t('noAccount')}

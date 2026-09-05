@@ -1,7 +1,7 @@
 import { formatMoney, cartTotal } from '../lib/format.js';
 import { go } from '../lib/route.js';
 import { useApp, useT } from '../store/app.jsx';
-import { Button, EmptyState } from '../components/ui.jsx';
+import { Button, EmptyState, FoodStage } from '../components/ui.jsx';
 
 export default function Cart() {
   const t = useT();
@@ -14,20 +14,28 @@ export default function Cart() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-extrabold">{t('navCart')}</h1>
+      <h1 className="text-2xl font-extrabold tracking-tight">{t('navCart')}</h1>
       {app.cart.map((item) => (
-        <div key={item.dishId} className="flex items-center gap-3 rounded-3xl bg-white p-4 shadow-card">
-          <span className="text-2xl">{item.emoji}</span>
+        <div key={item.dishId} className="card-cut hover-lift flex items-center gap-3 bg-white p-3">
+          <FoodStage photoUrl={item.photoUrl} emoji={item.emoji || '🥟'} ratio="thumb" />
           <div className="min-w-0 flex-1">
-            <p className="font-extrabold">{item.name}</p>
+            <p className="font-extrabold tracking-tight">{item.name}</p>
             <p className="text-sm text-mute">{formatMoney(item.price, currency, app.locale)}</p>
           </div>
           <div className="flex items-center gap-2">
-            <button type="button" className="h-11 w-11 rounded-2xl border border-line" onClick={() => app.setQty(item.dishId, item.qty - 1)}>
+            <button
+              type="button"
+              className="h-11 w-11 rounded-cut border border-line transition hover:border-primary hover:bg-primary-soft/50"
+              onClick={() => app.setQty(item.dishId, item.qty - 1)}
+            >
               −
             </button>
             <span className="w-6 text-center font-bold">{item.qty}</span>
-            <button type="button" className="h-11 w-11 rounded-2xl border border-line" onClick={() => app.setQty(item.dishId, item.qty + 1)}>
+            <button
+              type="button"
+              className="h-11 w-11 rounded-cut border border-line transition hover:border-primary hover:bg-primary-soft/50"
+              onClick={() => app.setQty(item.dishId, item.qty + 1)}
+            >
               +
             </button>
           </div>

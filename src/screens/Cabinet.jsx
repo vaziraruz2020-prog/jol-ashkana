@@ -2,10 +2,23 @@ import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
 import { usePoll } from '../lib/poll.js';
 import { geoName, statusOrder } from '../copy/index.js';
+import { DISH_EMOJIS, KITCHEN_EMOJIS } from '../lib/emoji.js';
 import { formatMoney } from '../lib/format.js';
 import { go } from '../lib/route.js';
 import { useApp, useT } from '../store/app.jsx';
-import { Button, Chip, ChipRow, EmptyState, Field, Reveal, StatusChip, inputClass } from '../components/ui.jsx';
+import {
+  Button,
+  Chip,
+  ChipRow,
+  EmojiPicker,
+  EmptyState,
+  Field,
+  FoodStage,
+  PhotoField,
+  Reveal,
+  StatusChip,
+  inputClass,
+} from '../components/ui.jsx';
 
 export default function Cabinet({ tab = 'orders' }) {
   const t = useT();
@@ -19,11 +32,13 @@ export default function Cabinet({ tab = 'orders' }) {
       go('#/login');
       return;
     }
-    api('/my/kitchen').then((d) => {
-      setKitchen(d.kitchen);
-      setDishes(d.dishes || []);
-      app.setKitchen(d.kitchen);
-    }).catch(() => {});
+    api('/my/kitchen')
+      .then((d) => {
+        setKitchen(d.kitchen);
+        setDishes(d.dishes || []);
+        app.setKitchen(d.kitchen);
+      })
+      .catch(() => {});
   }, [app.user]);
 
   usePoll(
@@ -45,7 +60,7 @@ export default function Cabinet({ tab = 'orders' }) {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-extrabold">{t('cabinetTitle')}</h1>
+      <h1 className="text-2xl font-extrabold tracking-tight">{t('cabinetTitle')}</h1>
       <ChipRow>
         {tabs.map((item) => (
           <Chip key={item.id} active={tab === item.id} onClick={() => go(item.hash)}>
@@ -54,15 +69,16 @@ export default function Cabinet({ tab = 'orders' }) {
         ))}
       </ChipRow>
       {kitchen?.verificationStatus === 'pending' && (
-        <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">{t('kitchenPending')}</p>
+        <p className="rounded-cut bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">{t('kitchenPending')}</p>
       )}
       {kitchen?.verificationStatus === 'rejected' && (
-        <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+        <p className="rounded-cut bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
           {t('kitchenRejected')}: {kitchen.verificationNote}
         </p>
       )}
       {tab === 'kitchen' && (
         <KitchenForm
+          key={kitchen?.id || 'new'}
           kitchen={kitchen}
           onSaved={(k) => {
             setKitchen(k);
@@ -107,7 +123,8 @@ function KitchenForm({ kitchen, onSaved }) {
     deliveryPickup: kitchen?.deliveryPickup !== false,
     deliveryCourier: kitchen?.deliveryCourier !== false,
     confirmCooksHere: Boolean(kitchen?.confirmCooksHere),
-    emoji: kitchen?.emoji || '🍞',
+    emoji: kitchen?.emoji || '🥐',
+    photoUrl: kitchen?.photoUrl || '',
   }));
   const [busy, setBusy] = useState(false);
 
@@ -136,16 +153,25 @@ function KitchenForm({ kitchen, onSaved }) {
       const data = await api('/my/kitchen', { method: kitchen ? 'PATCH' : 'POST', body: form });
       onSaved(data.kitchen);
       app.notify(t('kitchenSaved'));
-    } catch {
-      app.notify(t('serverError'));
+    } catch (err) {
+      app.notify(err.data?.error === 'photo' ? t('photoError') : t('serverError'));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <form onSubmit={submit} className="space-y-3 rounded-3xl bg-white p-5 shadow-card">
+    <form onSubmit={submit} className="card-cut space-y-3 bg-white p-5">
       <p className="text-sm text-mute">{t('createKitchenHint')}</p>
+      <PhotoField
+        label={t('photoLabel')}
+        hint={t('photoHint')}
+        removeLabel={t('photoRemove')}
+        value={form.photoUrl}
+        onChange={(v) => set('photoUrl', v)}
+        onError={() => app.notify(t('photoError'))}
+      />
+      <EmojiPicker label={t('pickEmoji')} value={form.emoji} onChange={(v) => set('emoji', v)} options={KITCHEN_EMOJIS} />
       <Field label={t('kitchenName')}>
         <input className={inputClass()} value={form.name} onChange={(e) => set('name', e.target.value)} required />
       </Field>
@@ -189,7 +215,14 @@ function KitchenForm({ kitchen, onSaved }) {
         </ChipRow>
       </div>
       <Field label={t('cutoffHour')}>
-        <input className={inputClass()} type="number" min="10" max="22" value={form.cutoffHour} onChange={(e) => set('cutoffHour', Number(e.target.value))} />
+        <input
+          className={inputClass()}
+          type="number"
+          min="10"
+          max="22"
+          value={form.cutoffHour}
+          onChange={(e) => set('cutoffHour', Number(e.target.value))}
+        />
       </Field>
       <label className="flex items-center gap-2 text-sm font-semibold">
         <input type="checkbox" checked={form.deliveryPickup} onChange={(e) => set('deliveryPickup', e.target.checked)} />
@@ -203,7 +236,9 @@ function KitchenForm({ kitchen, onSaved }) {
         <input type="checkbox" checked={form.confirmCooksHere} onChange={(e) => set('confirmCooksHere', e.target.checked)} required />
         {t('confirmCooks')}
       </label>
-      <Button type="submit" disabled={busy}>{t('createKitchen')}</Button>
+      <Button type="submit" disabled={busy}>
+        {t('createKitchen')}
+      </Button>
     </form>
   );
 }
@@ -213,7 +248,16 @@ function MenuForm({ kitchen, dishes, onAdd, onPatch }) {
   const app = useApp();
   const country = app.geo.countries.find((c) => c.id === kitchen.countryId);
   const currency = country?.currency || 'UZS';
-  const [form, setForm] = useState({ name: '', price: '', unit: 'шт', category: '', ingredients: '', leftover: 20, emoji: '🍽' });
+  const [form, setForm] = useState({
+    name: '',
+    price: '',
+    unit: 'шт',
+    category: '',
+    ingredients: '',
+    leftover: 20,
+    emoji: '🥟',
+    photoUrl: '',
+  });
   const [busy, setBusy] = useState(false);
 
   async function add(e) {
@@ -225,10 +269,19 @@ function MenuForm({ kitchen, dishes, onAdd, onPatch }) {
         body: { ...form, price: Number(form.price), leftover: Number(form.leftover) },
       });
       onAdd(data.dish);
-      setForm({ name: '', price: '', unit: 'шт', category: '', ingredients: '', leftover: 20, emoji: '🍽' });
+      setForm({
+        name: '',
+        price: '',
+        unit: 'шт',
+        category: '',
+        ingredients: '',
+        leftover: 20,
+        emoji: '🥟',
+        photoUrl: '',
+      });
       app.notify(t('dishAdded'));
-    } catch {
-      app.notify(t('serverError'));
+    } catch (err) {
+      app.notify(err.data?.error === 'photo' ? t('photoError') : t('serverError'));
     } finally {
       setBusy(false);
     }
@@ -236,7 +289,21 @@ function MenuForm({ kitchen, dishes, onAdd, onPatch }) {
 
   return (
     <div className="space-y-3">
-      <form onSubmit={add} className="space-y-3 rounded-3xl bg-white p-5 shadow-card">
+      <form onSubmit={add} className="card-cut space-y-3 bg-white p-5">
+        <PhotoField
+          label={t('photoLabel')}
+          hint={t('photoHint')}
+          removeLabel={t('photoRemove')}
+          value={form.photoUrl}
+          onChange={(v) => setForm({ ...form, photoUrl: v })}
+          onError={() => app.notify(t('photoError'))}
+        />
+        <EmojiPicker
+          label={t('pickEmoji')}
+          value={form.emoji}
+          onChange={(v) => setForm({ ...form, emoji: v })}
+          options={DISH_EMOJIS}
+        />
         <Field label={t('dishName')}>
           <input className={inputClass()} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
         </Field>
@@ -254,61 +321,70 @@ function MenuForm({ kitchen, dishes, onAdd, onPatch }) {
         <Field label={t('leftover')}>
           <input className={inputClass()} type="number" value={form.leftover} onChange={(e) => setForm({ ...form, leftover: e.target.value })} />
         </Field>
-        <Button type="submit" disabled={busy}>{t('addDish')}</Button>
+        <Button type="submit" disabled={busy}>
+          {t('addDish')}
+        </Button>
       </form>
-      {dishes.map((dish, i) => (
-        <Reveal key={dish.id} delay={i * 50}>
-          <div className="rounded-3xl bg-white p-4 shadow-card">
-            <div className="flex items-center justify-between gap-2">
-              <p className="font-extrabold">{dish.emoji} {dish.name}</p>
-              <p className="text-sm font-bold">{formatMoney(dish.price, currency, app.locale)}</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {dishes.map((dish, i) => (
+          <Reveal key={dish.id} delay={i * 40}>
+            <div className="card-cut hover-lift overflow-hidden bg-white">
+              <FoodStage photoUrl={dish.photoUrl} emoji={dish.emoji || '🥟'} accent={kitchen.accent} ratio="plate" />
+              <div className="p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-extrabold tracking-tight">{dish.name}</p>
+                  <p className="text-sm font-bold">{formatMoney(dish.price, currency, app.locale)}</p>
+                </div>
+                <p className="mt-1 text-sm tracking-wide text-mute">{dish.ingredients}</p>
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="h-9 w-9 rounded-cut border border-line text-sm font-bold transition hover:border-primary hover:bg-primary-soft/50"
+                    onClick={async () => {
+                      const data = await api(`/my/dishes/${dish.id}`, {
+                        method: 'PATCH',
+                        body: { leftover: Math.max(0, dish.leftover - 1) },
+                      });
+                      onPatch(data.dish);
+                    }}
+                  >
+                    −
+                  </button>
+                  <span className="text-sm">
+                    {t('leftover')}: {dish.leftover}
+                  </span>
+                  <button
+                    type="button"
+                    className="h-9 w-9 rounded-cut border border-line text-sm font-bold transition hover:border-primary hover:bg-primary-soft/50"
+                    onClick={async () => {
+                      const data = await api(`/my/dishes/${dish.id}`, {
+                        method: 'PATCH',
+                        body: { leftover: dish.leftover + 1 },
+                      });
+                      onPatch(data.dish);
+                    }}
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    className="ml-auto rounded-cut bg-ink px-3 py-2 text-xs font-bold text-white transition hover:bg-primary"
+                    onClick={async () => {
+                      const data = await api(`/my/dishes/${dish.id}`, {
+                        method: 'PATCH',
+                        body: { availableTomorrow: !dish.availableTomorrow },
+                      });
+                      onPatch(data.dish);
+                    }}
+                  >
+                    {dish.availableTomorrow ? t('onMenu') : t('offMenu')}
+                  </button>
+                </div>
+              </div>
             </div>
-            <p className="text-sm text-mute">{dish.ingredients}</p>
-            <div className="mt-2 flex items-center gap-2">
-              <button
-                type="button"
-                className="rounded-full border border-line px-3 py-1 text-xs font-bold"
-                onClick={async () => {
-                  const data = await api(`/my/dishes/${dish.id}`, {
-                    method: 'PATCH',
-                    body: { leftover: Math.max(0, dish.leftover - 1) },
-                  });
-                  onPatch(data.dish);
-                }}
-              >
-                −
-              </button>
-              <span className="text-sm">{t('leftover')}: {dish.leftover}</span>
-              <button
-                type="button"
-                className="rounded-full border border-line px-3 py-1 text-xs font-bold"
-                onClick={async () => {
-                  const data = await api(`/my/dishes/${dish.id}`, {
-                    method: 'PATCH',
-                    body: { leftover: dish.leftover + 1 },
-                  });
-                  onPatch(data.dish);
-                }}
-              >
-                +
-              </button>
-              <button
-                type="button"
-                className="ml-auto rounded-full bg-ink px-3 py-1 text-xs font-bold text-white"
-                onClick={async () => {
-                  const data = await api(`/my/dishes/${dish.id}`, {
-                    method: 'PATCH',
-                    body: { availableTomorrow: !dish.availableTomorrow },
-                  });
-                  onPatch(data.dish);
-                }}
-              >
-                {dish.availableTomorrow ? t('onMenu') : t('offMenu')}
-              </button>
-            </div>
-          </div>
-        </Reveal>
-      ))}
+          </Reveal>
+        ))}
+      </div>
     </div>
   );
 }
@@ -331,22 +407,22 @@ function BakerOrders({ orders, dishes = [], onChange }) {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-3xl bg-white px-3 py-4 text-center shadow-card">
+        <div className="card-cut hover-lift bg-white px-3 py-4 text-center">
           <p className="text-xl font-extrabold">{openCount}</p>
           <p className="mt-1 text-[11px] font-semibold text-mute">{t('statOpen')}</p>
         </div>
-        <div className="rounded-3xl bg-white px-3 py-4 text-center shadow-card">
+        <div className="card-cut hover-lift bg-white px-3 py-4 text-center">
           <p className="text-xl font-extrabold">{readyCount}</p>
           <p className="mt-1 text-[11px] font-semibold text-mute">{t('status.ready')}</p>
         </div>
-        <div className="rounded-3xl bg-white px-3 py-4 text-center shadow-card">
+        <div className="card-cut hover-lift bg-white px-3 py-4 text-center">
           <p className="text-xl font-extrabold">{leftoverSum}</p>
           <p className="mt-1 text-[11px] font-semibold text-mute">{t('leftover')}</p>
         </div>
       </div>
       {!orders.length && <EmptyState title={t('noOrdersToday')} />}
       {orders.map((o) => (
-        <div key={o.id} className="rounded-3xl bg-white p-4 shadow-card">
+        <div key={o.id} className="card-cut hover-lift bg-white p-4">
           <div className="flex items-center justify-between">
             <p className="font-extrabold">{o.id}</p>
             <StatusChip status={o.status} />

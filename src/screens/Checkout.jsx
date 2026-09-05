@@ -30,10 +30,12 @@ export default function Checkout() {
       go('#/cart');
       return;
     }
-    api(`/kitchens/${kitchenId}`).then((d) => {
-      setKitchen(d.kitchen);
-      if (!d.kitchen.deliveryPickup && d.kitchen.deliveryCourier) setDelivery('courier');
-    }).catch(() => go('#/cart'));
+    api(`/kitchens/${kitchenId}`)
+      .then((d) => {
+        setKitchen(d.kitchen);
+        if (!d.kitchen.deliveryPickup && d.kitchen.deliveryCourier) setDelivery('courier');
+      })
+      .catch(() => go('#/cart'));
   }, [app.user, kitchenId]);
 
   if (!app.user || !app.cart.length) return null;
@@ -78,9 +80,9 @@ export default function Checkout() {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
-      <h1 className="text-2xl font-extrabold">{t('confirm')}</h1>
-      <p className="rounded-2xl bg-fresh-soft px-4 py-3 text-sm font-semibold text-fresh-dark">{t('payCash')}</p>
+    <form onSubmit={submit} className="card-cut space-y-4 bg-white p-5">
+      <h1 className="text-2xl font-extrabold tracking-tight">{t('confirm')}</h1>
+      <p className="rounded-cut bg-fresh-soft px-4 py-3 text-sm font-semibold text-fresh-dark">{t('payCash')}</p>
       <Field label={t('name')}>
         <input className={inputClass(error === 'name')} value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
@@ -122,7 +124,7 @@ export default function Checkout() {
       <Field label={t('comment')}>
         <textarea className={inputClass()} value={comment} onChange={(e) => setComment(e.target.value)} />
       </Field>
-      <p className="text-lg font-extrabold">
+      <p className="text-lg font-extrabold tracking-tight">
         {t('total')}: {formatMoney(cartTotal(app.cart), currency, app.locale)}
       </p>
       {error && !['name', 'phone', 'address'].includes(error) && (

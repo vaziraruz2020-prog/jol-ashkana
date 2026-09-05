@@ -40,7 +40,7 @@ import {
   writeAudit,
 } from './repos.js';
 import { publicDish, publicKitchen, publicUser } from './serialize.js';
-import { flag, kitchenVisible } from './util.js';
+import { flag, kitchenVisible, sanitizePhotoUrl } from './util.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -99,7 +99,7 @@ function readRawBody(req) {
       req.removeListener('end', onEnd);
       req.removeListener('error', onErr);
       resolve(data);
-    }, 4000);
+    }, 8000);
     function done(value, err) {
       clearTimeout(timer);
       req.removeListener('data', onData);
@@ -110,7 +110,7 @@ function readRawBody(req) {
     }
     function onData(c) {
       data += c;
-      if (data.length > 1_000_000) done('', new Error('too large'));
+      if (data.length > 1_200_000) done('', new Error('too large'));
     }
     function onEnd() {
       done(data);
@@ -289,6 +289,11 @@ function parseBlocked(body) {
   if (body.blocked === 'true' || body.blocked === 1 || body.blocked === '1') return true;
   if (body.blocked === 'false' || body.blocked === 0 || body.blocked === '0') return false;
   return null;
+}
+
+function readPhoto(body) {
+  if (!body || !Object.prototype.hasOwnProperty.call(body, 'photoUrl')) return undefined;
+  return sanitizePhotoUrl(body.photoUrl);
 }
 
 export async function handle(req, res) {
@@ -504,6 +509,11 @@ export async function handle(req, res) {
         send(res, 400, { error: 'geo' });
         return;
       }
+      const photoUrl = readPhoto(body);
+      if (photoUrl === null) {
+        send(res, 400, { error: 'photo' });
+        return;
+      }
       const existing = await findKitchenByOwner(user.id);
       const payload = {
         name,
@@ -516,12 +526,14 @@ export async function handle(req, res) {
         cutoffHour: Math.min(22, Math.max(10, Number(body.cutoffHour) || 18)),
         deliveryPickup: body.deliveryPickup !== false,
         deliveryCourier: body.deliveryCourier !== false,
-        emoji: String(body.emoji || '🍞').slice(0, 4),
+        emoji: String(body.emoji || '🥐').slice(0, 8),
         confirmCooksHere: true,
         verificationStatus: 'pending',
         verificationNote: '',
         hidden: existing ? flag(existing.hidden) : false,
       };
+      if (photoUrl !== undefined) payload.photoUrl = photoUrl;
+      else if (!existing) payload.photoUrl = '';
       if (!payload.deliveryPickup && !payload.deliveryCourier) payload.deliveryPickup = true;
       let kitchen;
       if (existing) {
@@ -556,6 +568,11 @@ export async function handle(req, res) {
         send(res, 400, { error: 'fields' });
         return;
       }
+      const photoUrl = readPhoto(body);
+      if (photoUrl === null) {
+        send(res, 400, { error: 'photo' });
+        return;
+      }
       const leftover = Math.max(0, Number(body.leftover) || 20);
       const dish = await insertDish({
         id: newId('dish'),
@@ -568,7 +585,8 @@ export async function handle(req, res) {
         leftover,
         defaultLeftover: leftover,
         availableTomorrow: body.availableTomorrow !== false,
-        emoji: String(body.emoji || '🍽').slice(0, 4),
+        emoji: String(body.emoji || '🥟').slice(0, 8),
+        photoUrl: photoUrl || '',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
@@ -595,7 +613,13 @@ export async function handle(req, res) {
       if (typeof body.ingredients === 'string') patch.ingredients = body.ingredients;
       if (body.leftover != null) patch.leftover = Math.max(0, Number(body.leftover) || 0);
       if (body.availableTomorrow != null) patch.availableTomorrow = Boolean(body.availableTomorrow);
-      if (typeof body.emoji === 'string') patch.emoji = body.emoji.slice(0, 4);
+      if (typeof body.emoji === 'string') patch.emoji = body.emoji.slice(0, 8);
+      const photoUrl = readPhoto(body);
+      if (photoUrl === null) {
+        send(res, 400, { error: 'photo' });
+        return;
+      }
+      if (photoUrl !== undefined) patch.photoUrl = photoUrl;
       const next = await updateDish(dish.id, patch);
       send(res, 200, { dish: publicDish(next) });
       return;
@@ -766,14 +790,14 @@ export async function handle(req, res) {
       }
       if (typeof body.verificationNote === 'string') patch.verificationNote = body.verificationNote;
       if (body.hidden != null) patch.hidden = Boolean(body.hidden);
-      if (patch.verificationStatus == null && patch.hidden == null) {
+      if (patch.verificationStatus == null && patch.hidden == null && patch.verificationNote == null) {
         send(res, 400, { error: 'fields' });
         return;
       }
       const next = await updateKitchen(kitchen.id, patch);
       await safeAudit({
         actorUserId: user.id,
-        action: 'kitchen.patch',
+        action: 'admin_kitchen',
         targetType: 'kitchen',
         targetId: kitchen.id,
         payload: patch,
@@ -782,45 +806,42 @@ export async function handle(req, res) {
       return;
     }
 
-    if (hit('GET', '/api/admin/users')) {
+    if (hit('GET', '/api/admin/orders')) {
       const user = await currentUser(req);
       if (!requireSupport(user, res)) return;
-      const users = await listUsers();
-      send(res, 200, { users: users.map(publicUser) });
+      const rows = await searchAdminOrders(q.q);
+      send(res, 200, { orders: await attachOrders(rows) });
       return;
     }
 
-    const adminUser = hitWrite('/api/admin/users/:id');
-    if (adminUser) {
+    const adminOrder = hitWrite('/api/admin/orders/:id');
+    if (adminOrder) {
       const user = await currentUser(req);
       if (!requireSupport(user, res)) return;
-      const target = await findUserById(adminUser.id);
-      if (!target) {
+      const order = await findOrderById(adminOrder.id);
+      if (!order) {
         send(res, 404, { error: 'not_found' });
         return;
       }
-      if (flag(target.isSupport)) {
-        send(res, 403, { error: 'forbidden' });
-        return;
-      }
       const body = await getBody(req);
-      const blocked = parseBlocked(body);
-      if (blocked == null) {
-        send(res, 400, { error: 'fields' });
-        return;
+      try {
+        const next = await updateOrderStatus(order, {
+          status: String(body.status || 'cancelled'),
+          actorUserId: user.id,
+          source: 'support',
+          force: true,
+        });
+        await safeAudit({
+          actorUserId: user.id,
+          action: 'admin_cancel_order',
+          targetType: 'order',
+          targetId: order.id,
+          payload: { status: next.status },
+        });
+        send(res, 200, { order: await attachOrder(next) });
+      } catch (err) {
+        if (!sendErr(res, err)) throw err;
       }
-      const next = await updateUser(target.id, {
-        blocked,
-        blockedReason: blocked ? String(body.reason || '') : '',
-      });
-      await safeAudit({
-        actorUserId: user.id,
-        action: blocked ? 'user.block' : 'user.unblock',
-        targetType: 'user',
-        targetId: target.id,
-        payload: { reason: body.reason || '' },
-      });
-      send(res, 200, { user: publicUser(next) });
       return;
     }
 
@@ -847,79 +868,64 @@ export async function handle(req, res) {
         return;
       }
       const next = await updateTicket(ticket.id, { status });
-      await safeAudit({
-        actorUserId: user.id,
-        action: 'ticket.status',
-        targetType: 'ticket',
-        targetId: ticket.id,
-        payload: { status },
-      });
       send(res, 200, { ticket: next });
       return;
     }
 
-    if (hit('GET', '/api/admin/orders')) {
+    if (hit('GET', '/api/admin/users')) {
       const user = await currentUser(req);
       if (!requireSupport(user, res)) return;
-      const rows = await searchAdminOrders(q.q);
-      send(res, 200, { orders: await attachOrders(rows) });
+      const users = await listUsers();
+      send(res, 200, { users: users.map(publicUser) });
       return;
     }
 
-    const adminOrder = hitWrite('/api/admin/orders/:id');
-    if (adminOrder) {
+    const adminUser = hitWrite('/api/admin/users/:id');
+    if (adminUser) {
       const user = await currentUser(req);
       if (!requireSupport(user, res)) return;
-      const order = await findOrderById(adminOrder.id);
-      if (!order) {
+      const target = await findUserById(adminUser.id);
+      if (!target) {
         send(res, 404, { error: 'not_found' });
         return;
       }
       const body = await getBody(req);
-      const status = String(body.status || '');
-      if (status !== 'cancelled') {
-        send(res, 400, { error: 'status' });
+      const blocked = parseBlocked(body);
+      if (blocked == null) {
+        send(res, 400, { error: 'fields' });
         return;
       }
-      try {
-        const next = await updateOrderStatus(order, {
-          status,
-          actorUserId: user.id,
-          source: 'support',
-          force: true,
-        });
-        await safeAudit({
-          actorUserId: user.id,
-          action: 'order.cancel',
-          targetType: 'order',
-          targetId: order.id,
-          payload: { status },
-        });
-        send(res, 200, { order: await attachOrder(next) });
-      } catch (err) {
-        if (!sendErr(res, err)) throw err;
+      const reason = String(body.blockedReason || '').trim();
+      if (blocked && !reason) {
+        send(res, 400, { error: 'reason' });
+        return;
       }
+      const next = await updateUser(target.id, { blocked, blockedReason: blocked ? reason : '' });
+      await safeAudit({
+        actorUserId: user.id,
+        action: blocked ? 'admin_block_user' : 'admin_unblock_user',
+        targetType: 'user',
+        targetId: target.id,
+        payload: { blocked, blockedReason: next.blockedReason },
+      });
+      send(res, 200, { user: publicUser(next) });
       return;
     }
 
-    if (method === 'GET' && (pathname === '/api' || pathname === '/api/')) {
-      send(res, 200, {
-        ok: true,
-        app: 'JOL-Ashkana API',
-        db: dbMode(),
-        open: 'http://localhost:5173',
-      });
+    if (pathname === '/api' || pathname === '/api/') {
+      send(res, 200, { ok: true, app: 'JOL-Ashkana API', db: dbMode(), open: 'http://localhost:5173' });
       return;
     }
 
     send(res, 404, { error: 'not_found' });
   } catch (err) {
     console.error(err);
-    const code = err?.code;
-    if (code === 'jwt_config' || code === 'db_config' || code === 'db') {
-      send(res, 503, { error: code, hint: err.message || 'Config error' });
+    if (err?.code === 'db_config' || err?.code === 'jwt_config' || err?.code === 'db') {
+      sendDbDown(res, err);
       return;
     }
-    send(res, 500, { error: 'server', hint: err?.message || 'Server error' });
+    send(res, 500, { error: 'server' });
   }
 }
+
+export default handle;

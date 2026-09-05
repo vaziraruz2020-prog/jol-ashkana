@@ -53,3 +53,15 @@ export function nextStatusAllowed(from, to, { force = false } = {}) {
   const i = STATUS_FLOW.indexOf(from);
   return i >= 0 && STATUS_FLOW[i + 1] === to;
 }
+
+const PHOTO_RE = /^data:image\/(jpeg|jpg|png|webp);base64,/i;
+const PHOTO_MAX = 450000;
+
+export function sanitizePhotoUrl(value) {
+  if (value == null) return undefined;
+  if (typeof value !== 'string') return null;
+  const v = value.trim();
+  if (!v) return '';
+  if (!PHOTO_RE.test(v) || v.length > PHOTO_MAX) return null;
+  return v;
+}

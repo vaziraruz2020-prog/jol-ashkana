@@ -25,6 +25,21 @@ function loadGeoSel() {
   }
 }
 
+function cartLine(dish, kitchenMeta, qty = 1) {
+  return {
+    dishId: dish.id,
+    kitchenId: dish.kitchenId,
+    name: dish.name,
+    price: dish.price,
+    unit: dish.unit,
+    emoji: dish.emoji,
+    photoUrl: dish.photoUrl || '',
+    leftover: dish.leftover,
+    qty,
+    currency: kitchenMeta?.currency,
+  };
+}
+
 export function AppProvider({ children }) {
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState(null);
@@ -139,38 +154,16 @@ export function AppProvider({ children }) {
       const existing = cart.find((i) => i.dishId === dish.id);
       const nextQty = (existing?.qty || 0) + 1;
       if (nextQty > dish.leftover) return { ok: false, error: 'leftover' };
-      const line = {
-        dishId: dish.id,
-        kitchenId: dish.kitchenId,
-        name: dish.name,
-        price: dish.price,
-        unit: dish.unit,
-        emoji: dish.emoji,
-        leftover: dish.leftover,
-        currency: kitchenMeta?.currency,
-      };
       setCart(
         existing
-          ? cart.map((i) => (i.dishId === dish.id ? { ...i, qty: nextQty } : i))
-          : [...cart, { ...line, qty: 1 }],
+          ? cart.map((i) => (i.dishId === dish.id ? { ...i, qty: nextQty, photoUrl: dish.photoUrl || i.photoUrl } : i))
+          : [...cart, cartLine(dish, kitchenMeta, 1)],
       );
       return { ok: true };
     }
 
     function replaceCartAndAdd(dish, kitchenMeta) {
-      setCart([
-        {
-          dishId: dish.id,
-          kitchenId: dish.kitchenId,
-          name: dish.name,
-          price: dish.price,
-          unit: dish.unit,
-          emoji: dish.emoji,
-          leftover: dish.leftover,
-          qty: 1,
-          currency: kitchenMeta?.currency,
-        },
-      ]);
+      setCart([cartLine(dish, kitchenMeta, 1)]);
       return { ok: true };
     }
 

@@ -1,101 +1,61 @@
-import { geoName } from '../copy/index.js';
-import { cartQty } from '../lib/format.js';
+import { cartCount } from '../lib/format.js';
 import { go } from '../lib/route.js';
 import { useApp, useT } from '../store/app.jsx';
 
-function Logo({ onClick }) {
-  const t = useT();
+function LogoMark() {
   return (
-    <button type="button" onClick={onClick} className="flex items-center gap-2">
-      <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-sm font-extrabold text-white shadow-pop">
-        JA
-      </span>
-      <span className="text-base font-extrabold tracking-tight">{t('brand')}</span>
-    </button>
+    <span className="grid h-9 w-9 place-items-center rounded-cut bg-primary text-sm font-extrabold text-white shadow-pop transition duration-200 group-hover:rotate-6 group-hover:bg-primary-dark">
+      JA
+    </span>
   );
 }
 
-function isNoisyHealthHint(hint) {
-  return /duplicate key|users_pkey|users_email/i.test(String(hint || ''));
-}
-
-export default function AppShell({ route, hideNav, children }) {
-  const app = useApp();
+export default function AppShell({ children, route, hideNav }) {
   const t = useT();
-  const qty = cartQty(app.cart);
-  const city = app.geo.cities.find((c) => c.id === app.cityId);
-  const role = app.user?.isSupport ? 'support' : app.user?.activeRole || 'buyer';
-  const healthDown =
-    app.health && app.health.ok === false && !isNoisyHealthHint(app.health.hint);
-  const healthText = t('healthBanner').replace('{hint}', app.health?.hint || t('dbError'));
+  const { user, locale, setLocale, cart, health } = useApp();
+  const count = cartCount(cart);
+  const isBaker = user?.activeRole === 'baker';
+  const isSupport = Boolean(user?.isSupport);
 
   const tabs = [
-    { id: 'home', label: t('navHome'), hash: '#/', icon: '⌂' },
-    { id: 'catalog', label: t('navDistrict'), hash: '#/catalog', icon: '◎' },
-    { id: 'cart', label: t('navCart'), hash: '#/cart', icon: '◉' },
-    { id: 'orders', label: t('navOrders'), hash: '#/orders', icon: '☰' },
-    {
-      id: 'last',
-      label: role === 'support' ? t('iAmSupport') : role === 'baker' ? t('navBaker') : t('navAccount'),
-      hash: role === 'support' ? '#/admin' : role === 'baker' ? '#/cabinet' : '#/account',
-      icon: '♨',
-    },
+    { id: 'home', hash: '#/', label: t('navHome'), icon: '⌂', match: ['landing'] },
+    { id: 'district', hash: '#/catalog', label: t('navDistrict'), icon: '◎', match: ['catalog', 'baker'] },
+    { id: 'cart', hash: '#/cart', label: t('navCart'), icon: '◉', match: ['cart', 'checkout'] },
+    { id: 'orders', hash: '#/orders', label: t('navOrders'), icon: '☰', match: ['orders', 'order'] },
   ];
-
-  const active =
-    route.name === 'landing' || route.name === 'login' || route.name === 'register'
-      ? 'home'
-      : route.name === 'cabinet' || route.name === 'account' || route.name === 'admin'
-        ? 'last'
-        : route.name === 'cart' || route.name === 'checkout'
-          ? 'cart'
-          : route.name === 'orders' || route.name === 'order'
-            ? 'orders'
-            : 'catalog';
+  if (isBaker) tabs.push({ id: 'baker', hash: '#/cabinet', label: t('navBaker'), icon: '♨', match: ['cabinet'] });
+  if (isSupport) tabs.push({ id: 'admin', hash: '#/admin', label: t('iAmSupport'), icon: '✦', match: ['admin'] });
+  tabs.push({ id: 'account', hash: user ? '#/account' : '#/login', label: t('navAccount'), icon: '●', match: ['account', 'login', 'register'] });
 
   return (
-    <div className="mx-auto min-h-dvh max-w-app">
-      <header className="sticky top-0 z-40 border-b border-line/70 bg-cream/90 px-4 py-3 backdrop-blur">
-        <div className="flex items-center justify-between gap-3">
-          <Logo onClick={() => go('#/')} />
+    <div className="min-h-dvh bg-cream">
+      <header className="sticky top-0 z-40 border-b border-line/80 bg-cream/95 backdrop-blur">
+        <div className="mx-auto flex max-w-app items-center justify-between gap-3 px-4 py-3">
+          <button type="button" className="group flex min-w-0 items-center gap-2" onClick={() => go('#/')}>
+            <LogoMark />
+            <span className="truncate font-extrabold tracking-tight transition group-hover:text-primary">{t('brand')}</span>
+          </button>
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => app.setLocale(app.locale === 'ru' ? 'en' : 'ru')}
-              className="min-h-11 rounded-full border border-line bg-white px-3 text-xs font-bold"
+              className="rounded-full border border-line px-3 py-1 text-xs font-bold transition duration-200 hover:border-primary hover:bg-primary-soft/70"
+              onClick={() => setLocale(locale === 'ru' ? 'en' : 'ru')}
             >
-              {app.locale === 'ru' ? 'EN' : 'RU'}
+              {locale === 'ru' ? 'EN' : 'RU'}
             </button>
-            {city && (
+            {user ? (
               <button
                 type="button"
-                onClick={() => go('#/catalog')}
-                className="hidden min-h-11 rounded-full border border-line bg-white px-3 text-xs font-bold sm:inline-flex sm:items-center"
+                className="max-w-[42vw] truncate rounded-full bg-white px-3 py-1 text-xs font-bold transition duration-200 hover:bg-primary-soft"
+                onClick={() => go('#/account')}
               >
-                {geoName(city, app.locale)}
-              </button>
-            )}
-            {app.user ? (
-              <button
-                type="button"
-                onClick={async () => {
-                  if (app.user.isSupport) {
-                    go('#/admin');
-                    return;
-                  }
-                  const next = app.user.activeRole === 'baker' ? 'buyer' : 'baker';
-                  await app.switchRole(next);
-                  go(next === 'baker' ? '#/cabinet' : '#/catalog');
-                }}
-                className="min-h-11 rounded-full bg-ink px-3 text-xs font-bold text-white"
-              >
-                {app.user.activeRole === 'baker' ? t('iAmBuyer') : t('iAmBaker')}
+                {user.name}
               </button>
             ) : (
               <button
                 type="button"
+                className="rounded-full bg-ink px-3 py-1 text-xs font-bold text-white transition duration-200 hover:bg-primary"
                 onClick={() => go('#/login')}
-                className="min-h-11 rounded-full bg-ink px-3 text-xs font-bold text-white"
               >
                 {t('ctaLogin')}
               </button>
@@ -103,34 +63,33 @@ export default function AppShell({ route, hideNav, children }) {
           </div>
         </div>
       </header>
-
-      {healthDown && (
-        <div className="px-4 pt-3">
-          <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{healthText}</div>
+      {health && health.ok === false && (
+        <div className="bg-amber-100 px-4 py-2 text-center text-sm font-semibold text-amber-900">
+          {t('healthBanner').replace('{hint}', health.hint || '')}
         </div>
       )}
-
-      <main className={hideNav ? 'px-4 pb-10 pt-4' : 'px-4 pb-28 pt-4'}>{children}</main>
-
+      <main className={`mx-auto max-w-app px-4 py-4 ${hideNav ? 'pb-8' : 'pb-28'}`}>{children}</main>
       {!hideNav && (
-        <nav className="safe-bottom fixed bottom-0 left-0 right-0 z-40 border-t border-line bg-white/95 backdrop-blur">
-          <div className="mx-auto grid max-w-app grid-cols-5 px-1 pt-1">
+        <nav className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/95 backdrop-blur">
+          <div className="mx-auto grid max-w-app" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
             {tabs.map((tab) => {
-              const isActive = active === tab.id;
+              const active = tab.match.includes(route.name);
               return (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => go(tab.hash)}
-                  className={`relative flex min-h-12 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold ${
-                    isActive ? 'text-primary' : 'text-mute'
+                  className={`relative flex min-h-[64px] flex-col items-center justify-center gap-0.5 px-1 text-[11px] font-semibold transition duration-200 hover:-translate-y-0.5 ${
+                    active ? 'text-primary' : 'text-mute hover:text-ink'
                   }`}
                 >
-                  <span className="text-base leading-none">{tab.icon}</span>
-                  {tab.label}
-                  {tab.id === 'cart' && qty > 0 && (
-                    <span className="absolute right-3 top-0 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-[10px] text-white">
-                      {qty}
+                  <span className={`text-lg leading-none transition duration-200 ${active ? 'scale-110' : 'hover:scale-110'}`}>
+                    {tab.icon}
+                  </span>
+                  <span className="max-w-full truncate">{tab.label}</span>
+                  {tab.id === 'cart' && count > 0 && (
+                    <span className="absolute right-2 top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] text-white">
+                      {count}
                     </span>
                   )}
                 </button>

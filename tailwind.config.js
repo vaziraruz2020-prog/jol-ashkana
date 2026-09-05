@@ -15,6 +15,8 @@ export default {
           soft: '#D8F6E5',
         },
         cream: '#FFF8F3',
+        flour: '#FFF3E8',
+        crust: '#C47A3A',
         ink: '#1C1917',
         mute: '#78716C',
         line: '#E7E0D8',
@@ -25,9 +27,14 @@ export default {
       boxShadow: {
         card: '0 10px 28px rgba(28, 25, 23, 0.08)',
         pop: '0 16px 40px rgba(255, 107, 59, 0.18)',
+        lift: '0 18px 40px rgba(28, 25, 23, 0.14)',
+        cut: '4px 4px 0 rgba(28, 25, 23, 0.12)',
       },
       maxWidth: {
         app: '1100px',
+      },
+      borderRadius: {
+        cut: '2px',
       },
     },
   },

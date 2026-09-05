@@ -1,6 +1,18 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { MIGRATIONS } from './sql-migrations.js';
+import { MIGRATIONS as CORE } from './sql-migrations.js';
+
+const EXTRA = [
+  {
+    id: '003_photos.sql',
+    sql: `
+ALTER TABLE kitchens ADD COLUMN IF NOT EXISTS photo_url TEXT DEFAULT '';
+ALTER TABLE dishes ADD COLUMN IF NOT EXISTS photo_url TEXT DEFAULT '';
+`,
+  },
+];
+
+const MIGRATIONS = [...CORE, ...EXTRA.filter((m) => !CORE.some((c) => c.id === m.id))];
 
 export function splitSql(sql) {
   const parts = [];

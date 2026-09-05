@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" fill="none">
+  <defs>
+    <linearGradient id="warm" x1="0" y1="0" x2="800" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF8F3"/>
+      <stop offset=".45" stop-color="#FFE1D4"/>
+      <stop offset="1" stop-color="#F6C7A8"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(560 120) rotate(90) scale(280 340)">
+      <stop stop-color="#FFD7A8"/>
+      <stop offset="1" stop-color="#FFD7A8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="800" height="520" fill="url(#warm)"/>
+  <rect width="800" height="520" fill="url(#glow)"/>
+  <ellipse cx="400" cy="430" rx="280" ry="28" fill="#C47A3A" opacity=".18"/>
+  <path d="M80 390c40-160 140-250 320-250 190 0 300 110 340 250" fill="#F3D2B8"/>
+  <path d="M120 400c30-120 110-190 260-190 160 0 250 80 290 190" fill="#E8C4A4"/>
+  <path d="M210 360c18-70 70-108 140-100 28 4 58 28 64 58-34-10-66 4-88 28-20 22-48 40-86 34-14-2-26-10-30-20Z" fill="#E39B4A"/>
+  <path d="M228 352c16-56 60-88 118-80 22 3 46 22 52 46-28-8-54 2-72 22-16 18-38 32-70 28-12-2-22-8-28-16Z" fill="#F4C56A"/>
+  <path d="M430 368c10-58 46-92 98-92s88 34 98 92c2 22-10 38-34 42H464c-24-4-36-20-34-42Z" fill="#C47A3A"/>
+  <path d="M446 364c8-46 38-74 82-74s74 28 82 74c2 16-8 28-28 32H474c-20-4-30-16-28-32Z" fill="#E39B4A"/>
+  <path d="M470 318c8 12 12 32 10 52" stroke="#8B4518" stroke-width="4" stroke-linecap="round" opacity=".35"/>
+  <path d="M510 308c6 14 10 34 8 56" stroke="#8B4518" stroke-width="4" stroke-linecap="round" opacity=".35"/>
+  <path d="M548 318c6 12 10 32 8 50" stroke="#8B4518" stroke-width="4" stroke-linecap="round" opacity=".35"/>
+  <ellipse cx="640" cy="372" rx="70" ry="32" fill="#C47A3A"/>
+  <ellipse cx="640" cy="364" rx="58" ry="24" fill="#B23A2A"/>
+  <path d="M598 364c14-16 30-16 42 0 14 16 30 16 44 0" stroke="#FFE09A" stroke-width="4" stroke-linecap="round"/>
+  <path d="M268 210c6-28 4-48-8-70" stroke="#E85D04" stroke-width="3" stroke-linecap="round" opacity=".35"/>
+  <path d="M288 206c2-30 10-50 8-74" stroke="#E85D04" stroke-width="3" stroke-linecap="round" opacity=".28"/>
+  <path d="M308 214c8-26 6-46-2-68" stroke="#E85D04" stroke-width="3" stroke-linecap="round" opacity=".22"/>
+  <circle cx="160" cy="300" r="18" fill="#F4C56A"/>
+  <circle cx="190" cy="318" r="14" fill="#E39B4A"/>
+  <circle cx="148" cy="328" r="12" fill="#C47A3A"/>
+</svg>

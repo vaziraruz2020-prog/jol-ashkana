@@ -4,34 +4,46 @@ import { formatMoney } from '../lib/format.js';
 import { isPastCutoff, orderDateLabel } from '../lib/dates.js';
 import { go } from '../lib/route.js';
 import { useApp, useT } from '../store/app.jsx';
-import { Button, EmptyState, FoodTile, Modal, Reveal } from '../components/ui.jsx';
+import { Button, EmptyState, FoodStage, Modal, Reveal } from '../components/ui.jsx';
 import ReportForm from '../components/ReportForm.jsx';
 
-function DishCard({ dish, kitchen, currency, locale, t, onAdd, compact }) {
+function DishPlate({ dish, kitchen, currency, locale, t, onAdd }) {
   const out = !dish.availableTomorrow || dish.leftover <= 0;
   return (
-    <div className={`flex gap-3 rounded-3xl bg-white p-4 shadow-card ${compact ? 'h-full' : ''}`}>
-      <FoodTile emoji={dish.emoji} accent={kitchen.accent} className="h-14 w-14 shrink-0 text-2xl" />
-      <div className="min-w-0 flex-1">
-        <p className="font-extrabold">{dish.name}</p>
-        <p className="text-sm text-mute">{dish.ingredients}</p>
-        <p className="mt-1 text-sm font-bold">
-          {formatMoney(dish.price, currency, locale)} / {dish.unit}
-        </p>
-        {dish.leftover <= 3 && dish.leftover > 0 && (
-          <p className="text-xs font-bold text-primary">{t('leftoverFew')}</p>
-        )}
-        {out && <p className="text-xs font-bold text-mute">{t('leftoverOut')}</p>}
+    <article className={`card-cut hover-lift hover-cut group ${out ? 'opacity-70' : ''}`}>
+      <FoodStage
+        photoUrl={dish.photoUrl}
+        emoji={dish.emoji || '🥟'}
+        accent={kitchen.accent}
+        ratio="plate"
+        dim={out}
+      />
+      <div className="bg-white px-4 py-3">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="text-lg font-extrabold tracking-tight">{dish.name}</h3>
+          <p className="shrink-0 text-sm font-extrabold">
+            {formatMoney(dish.price, currency, locale)}
+            <span className="ml-1 text-[11px] font-semibold uppercase tracking-wider text-mute">/ {dish.unit}</span>
+          </p>
+        </div>
+        {dish.ingredients ? (
+          <p className="mt-1 text-sm tracking-wide text-mute">{dish.ingredients}</p>
+        ) : null}
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-mute">
+            {out ? t('leftoverOut') : dish.leftover <= 3 ? t('leftoverFew') : `${t('leftover')}: ${dish.leftover}`}
+          </p>
+          <button
+            type="button"
+            disabled={out}
+            onClick={() => onAdd(dish)}
+            className="h-11 min-w-11 rounded-cut bg-primary px-4 text-sm font-bold text-white transition duration-200 hover:bg-primary-dark hover:shadow-pop disabled:bg-line disabled:text-mute disabled:shadow-none"
+          >
+            {t('addToCart')}
+          </button>
+        </div>
       </div>
-      <button
-        type="button"
-        disabled={out}
-        onClick={() => onAdd(dish)}
-        className="h-11 shrink-0 self-center rounded-full bg-primary px-4 text-sm font-bold text-white disabled:bg-line disabled:text-mute"
-      >
-        +
-      </button>
-    </div>
+    </article>
   );
 }
 
@@ -66,7 +78,6 @@ export default function Baker({ id }) {
   const country = app.geo.countries.find((c) => c.id === k.countryId);
   const currency = country?.currency || 'UZS';
   const late = isPastCutoff(k.cutoffHour);
-  const available = (data.dishes || []).filter((d) => d.availableTomorrow && d.leftover > 0);
 
   function add(dish) {
     const result = app.addToCart(dish, { currency });
@@ -79,51 +90,35 @@ export default function Baker({ id }) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-3xl bg-white p-5 shadow-card">
-        <div className="flex gap-3">
-          <FoodTile emoji={k.emoji} accent={k.accent} className="h-16 w-16" />
-          <div>
-            <h1 className="text-2xl font-extrabold">{k.name}</h1>
-            <p className="text-sm text-mute">{k.bio}</p>
-            <p className="mt-1 text-sm">{k.address}</p>
-            <p className="mt-1 text-xs text-mute">
-              {late
-                ? t('cutoffLate').replace('{hour}', String(k.cutoffHour))
-                : t('cutoffOk').replace('{hour}', String(k.cutoffHour))}
-              {' · '}
-              {orderDateLabel(k.cutoffHour, app.locale, t)}
-            </p>
-          </div>
+      <div className="card-cut overflow-hidden">
+        <FoodStage photoUrl={k.photoUrl} emoji={k.emoji || '🥐'} accent={k.accent} ratio="poster" />
+        <div className="bg-white p-5">
+          <h1 className="text-2xl font-extrabold tracking-tight">{k.name}</h1>
+          {k.bio ? <p className="mt-1 text-sm tracking-wide text-mute">{k.bio}</p> : null}
+          <p className="mt-2 text-sm">{k.address}</p>
+          <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-mute">
+            {late
+              ? t('cutoffLate').replace('{hour}', String(k.cutoffHour))
+              : t('cutoffOk').replace('{hour}', String(k.cutoffHour))}
+            {' · '}
+            {orderDateLabel(k.cutoffHour, app.locale, t)}
+          </p>
+          {app.user && (
+            <button
+              type="button"
+              className="mt-3 text-sm font-bold text-red-600 transition hover:text-red-700"
+              onClick={() => setReportOpen(true)}
+            >
+              {t('report')}
+            </button>
+          )}
         </div>
-        {app.user && (
-          <button type="button" className="mt-3 text-sm font-bold text-red-600" onClick={() => setReportOpen(true)}>
-            {t('report')}
-          </button>
-        )}
       </div>
 
-      {available.length > 3 && (
-        <div className="snap-strip no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
-          {available.map((dish) => (
-            <div key={`snap-${dish.id}`} className="w-[78%] shrink-0 sm:w-[260px]">
-              <DishCard
-                dish={dish}
-                kitchen={k}
-                currency={currency}
-                locale={app.locale}
-                t={t}
-                onAdd={add}
-                compact
-              />
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="space-y-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         {data.dishes.map((dish, i) => (
-          <Reveal key={dish.id} delay={i * 50}>
-            <DishCard dish={dish} kitchen={k} currency={currency} locale={app.locale} t={t} onAdd={add} />
+          <Reveal key={dish.id} delay={i * 40}>
+            <DishPlate dish={dish} kitchen={k} currency={currency} locale={app.locale} t={t} onAdd={add} />
           </Reveal>
         ))}
       </div>

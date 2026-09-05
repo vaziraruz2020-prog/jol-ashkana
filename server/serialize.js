@@ -32,8 +32,9 @@ export function publicKitchen(k, { includePrivate = false } = {}) {
     cutoffHour: Number(k.cutoffHour) || 18,
     deliveryPickup: flag(k.deliveryPickup),
     deliveryCourier: flag(k.deliveryCourier),
-    emoji: k.emoji || '🍞',
+    emoji: k.emoji || '🥐',
     accent: k.accent || '#E85D04',
+    photoUrl: k.photoUrl || '',
     verificationStatus: k.verificationStatus,
     hidden: flag(k.hidden),
   };
@@ -57,7 +58,8 @@ export function publicDish(d) {
     ingredients: d.ingredients || '',
     leftover: Number(d.leftover) || 0,
     availableTomorrow: flag(d.availableTomorrow),
-    emoji: d.emoji || '🍽',
+    emoji: d.emoji || '🥟',
+    photoUrl: d.photoUrl || '',
   };
 }
 
