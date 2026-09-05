@@ -37,16 +37,42 @@ export default function OrderDetail({ id }) {
   if (missing) return <EmptyState title={t('adminNoOrders')} action={t('navOrders')} onAction={() => go('#/orders')} />;
   if (!order) return <p className="text-mute">…</p>;
 
+  const itemCount = (order.items || []).reduce((sum, item) => sum + Number(item.qty || 0), 0);
+
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-extrabold">{order.id}</h1>
-      <p className="text-mute">{order.kitchen?.name} · {formatDate(order.forDate, app.locale)}</p>
+      <section className="hero-warm rounded-[28px] p-5 shadow-card">
+        <p className="text-sm font-bold text-primary">{order.kitchen?.name}</p>
+        <h1 className="mt-1 text-2xl font-extrabold">{formatDate(order.forDate, app.locale)}</h1>
+        <p className="mt-1 text-sm text-mute">
+          {order.deliveryType === 'courier' ? t('courier') : t('pickup')} · {order.slot}
+        </p>
+        <p className="mt-2 text-xs text-mute">{order.id}</p>
+      </section>
+
       {order.status === 'cancelled' ? (
         <p className="font-bold text-red-600">{t('status.cancelled')}</p>
       ) : (
         <StatusStepper status={order.status} />
       )}
+
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-3xl bg-white px-3 py-4 text-center shadow-card">
+          <p className="text-xl font-extrabold">{itemCount}</p>
+          <p className="mt-1 text-[11px] font-semibold text-mute">{t('qty')}</p>
+        </div>
+        <div className="rounded-3xl bg-white px-3 py-4 text-center shadow-card">
+          <p className="truncate text-lg font-extrabold">{formatMoney(order.total, order.currency, app.locale)}</p>
+          <p className="mt-1 text-[11px] font-semibold text-mute">{t('total')}</p>
+        </div>
+        <div className="rounded-3xl bg-white px-3 py-4 text-center shadow-card">
+          <p className="truncate text-lg font-extrabold">{order.slot}</p>
+          <p className="mt-1 text-[11px] font-semibold text-mute">{t('slot')}</p>
+        </div>
+      </div>
+
       <div className="rounded-3xl bg-white p-4 shadow-card">
+        <p className="mb-2 text-sm font-bold">{t('yourOrder')}</p>
         {(order.items || []).map((item) => (
           <div key={item.id} className="flex justify-between py-1 text-sm">
             <span>
@@ -59,10 +85,7 @@ export default function OrderDetail({ id }) {
           {t('total')}: {formatMoney(order.total, order.currency, app.locale)}
         </p>
         <p className="mt-2 text-sm text-mute">{t('payCash')}</p>
-        <p className="mt-2 text-sm">
-          {order.deliveryType === 'courier' ? t('courier') : t('pickup')} · {order.slot}
-        </p>
-        <p className="text-sm">{order.address}</p>
+        <p className="mt-2 text-sm">{order.address}</p>
       </div>
       <button type="button" className="font-bold text-red-600" onClick={() => setReportOpen(true)}>
         {t('report')}

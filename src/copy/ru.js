@@ -108,6 +108,8 @@ export const ru = {
   },
   filterAll: 'Все',
   leftover: 'Остаток',
+  statOpen: 'Открытые',
+  yourOrder: 'Твой заказ',
   onMenu: 'Завтра',
   offMenu: 'Скрыто',
   adminTitle: 'Поддержка',

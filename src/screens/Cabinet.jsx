@@ -5,7 +5,7 @@ import { geoName, statusOrder } from '../copy/index.js';
 import { formatMoney } from '../lib/format.js';
 import { go } from '../lib/route.js';
 import { useApp, useT } from '../store/app.jsx';
-import { Button, Chip, ChipRow, EmptyState, Field, StatusChip, inputClass } from '../components/ui.jsx';
+import { Button, Chip, ChipRow, EmptyState, Field, Reveal, StatusChip, inputClass } from '../components/ui.jsx';
 
 export default function Cabinet({ tab = 'orders' }) {
   const t = useT();
@@ -82,7 +82,11 @@ export default function Cabinet({ tab = 'orders' }) {
         <EmptyState title={t('createKitchenHint')} action={t('createKitchen')} onAction={() => go('#/cabinet/kitchen')} />
       )}
       {tab === 'orders' && (
-        <BakerOrders orders={orders} onChange={(o) => setOrders((prev) => prev.map((x) => (x.id === o.id ? o : x)))} />
+        <BakerOrders
+          orders={orders}
+          dishes={dishes}
+          onChange={(o) => setOrders((prev) => prev.map((x) => (x.id === o.id ? o : x)))}
+        />
       )}
     </div>
   );
@@ -252,65 +256,69 @@ function MenuForm({ kitchen, dishes, onAdd, onPatch }) {
         </Field>
         <Button type="submit" disabled={busy}>{t('addDish')}</Button>
       </form>
-      {dishes.map((dish) => (
-        <div key={dish.id} className="rounded-3xl bg-white p-4 shadow-card">
-          <div className="flex items-center justify-between gap-2">
-            <p className="font-extrabold">{dish.emoji} {dish.name}</p>
-            <p className="text-sm font-bold">{formatMoney(dish.price, currency, app.locale)}</p>
+      {dishes.map((dish, i) => (
+        <Reveal key={dish.id} delay={i * 50}>
+          <div className="rounded-3xl bg-white p-4 shadow-card">
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-extrabold">{dish.emoji} {dish.name}</p>
+              <p className="text-sm font-bold">{formatMoney(dish.price, currency, app.locale)}</p>
+            </div>
+            <p className="text-sm text-mute">{dish.ingredients}</p>
+            <div className="mt-2 flex items-center gap-2">
+              <button
+                type="button"
+                className="rounded-full border border-line px-3 py-1 text-xs font-bold"
+                onClick={async () => {
+                  const data = await api(`/my/dishes/${dish.id}`, {
+                    method: 'PATCH',
+                    body: { leftover: Math.max(0, dish.leftover - 1) },
+                  });
+                  onPatch(data.dish);
+                }}
+              >
+                −
+              </button>
+              <span className="text-sm">{t('leftover')}: {dish.leftover}</span>
+              <button
+                type="button"
+                className="rounded-full border border-line px-3 py-1 text-xs font-bold"
+                onClick={async () => {
+                  const data = await api(`/my/dishes/${dish.id}`, {
+                    method: 'PATCH',
+                    body: { leftover: dish.leftover + 1 },
+                  });
+                  onPatch(data.dish);
+                }}
+              >
+                +
+              </button>
+              <button
+                type="button"
+                className="ml-auto rounded-full bg-ink px-3 py-1 text-xs font-bold text-white"
+                onClick={async () => {
+                  const data = await api(`/my/dishes/${dish.id}`, {
+                    method: 'PATCH',
+                    body: { availableTomorrow: !dish.availableTomorrow },
+                  });
+                  onPatch(data.dish);
+                }}
+              >
+                {dish.availableTomorrow ? t('onMenu') : t('offMenu')}
+              </button>
+            </div>
           </div>
-          <p className="text-sm text-mute">{dish.ingredients}</p>
-          <div className="mt-2 flex items-center gap-2">
-            <button
-              type="button"
-              className="rounded-full border border-line px-3 py-1 text-xs font-bold"
-              onClick={async () => {
-                const data = await api(`/my/dishes/${dish.id}`, {
-                  method: 'PATCH',
-                  body: { leftover: Math.max(0, dish.leftover - 1) },
-                });
-                onPatch(data.dish);
-              }}
-            >
-              −
-            </button>
-            <span className="text-sm">{t('leftover')}: {dish.leftover}</span>
-            <button
-              type="button"
-              className="rounded-full border border-line px-3 py-1 text-xs font-bold"
-              onClick={async () => {
-                const data = await api(`/my/dishes/${dish.id}`, {
-                  method: 'PATCH',
-                  body: { leftover: dish.leftover + 1 },
-                });
-                onPatch(data.dish);
-              }}
-            >
-              +
-            </button>
-            <button
-              type="button"
-              className="ml-auto rounded-full bg-ink px-3 py-1 text-xs font-bold text-white"
-              onClick={async () => {
-                const data = await api(`/my/dishes/${dish.id}`, {
-                  method: 'PATCH',
-                  body: { availableTomorrow: !dish.availableTomorrow },
-                });
-                onPatch(data.dish);
-              }}
-            >
-              {dish.availableTomorrow ? t('onMenu') : t('offMenu')}
-            </button>
-          </div>
-        </div>
+        </Reveal>
       ))}
     </div>
   );
 }
 
-function BakerOrders({ orders, onChange }) {
+function BakerOrders({ orders, dishes = [], onChange }) {
   const t = useT();
   const app = useApp();
-  if (!orders.length) return <EmptyState title={t('noOrdersToday')} />;
+  const openCount = orders.filter((o) => o.status === 'accepted' || o.status === 'baking').length;
+  const readyCount = orders.filter((o) => o.status === 'ready').length;
+  const leftoverSum = dishes.reduce((sum, d) => sum + Number(d.leftover || 0), 0);
 
   async function nextStatus(order) {
     const i = statusOrder.indexOf(order.status);
@@ -322,6 +330,21 @@ function BakerOrders({ orders, onChange }) {
 
   return (
     <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-3xl bg-white px-3 py-4 text-center shadow-card">
+          <p className="text-xl font-extrabold">{openCount}</p>
+          <p className="mt-1 text-[11px] font-semibold text-mute">{t('statOpen')}</p>
+        </div>
+        <div className="rounded-3xl bg-white px-3 py-4 text-center shadow-card">
+          <p className="text-xl font-extrabold">{readyCount}</p>
+          <p className="mt-1 text-[11px] font-semibold text-mute">{t('status.ready')}</p>
+        </div>
+        <div className="rounded-3xl bg-white px-3 py-4 text-center shadow-card">
+          <p className="text-xl font-extrabold">{leftoverSum}</p>
+          <p className="mt-1 text-[11px] font-semibold text-mute">{t('leftover')}</p>
+        </div>
+      </div>
+      {!orders.length && <EmptyState title={t('noOrdersToday')} />}
       {orders.map((o) => (
         <div key={o.id} className="rounded-3xl bg-white p-4 shadow-card">
           <div className="flex items-center justify-between">

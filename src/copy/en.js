@@ -108,6 +108,8 @@ export const en = {
   },
   filterAll: 'All',
   leftover: 'Left',
+  statOpen: 'Open',
+  yourOrder: 'Your order',
   onMenu: 'Tomorrow',
   offMenu: 'Hidden',
   adminTitle: 'Support',

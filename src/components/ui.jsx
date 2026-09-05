@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { statusOrder } from '../copy/index.js';
+import { useInView } from '../lib/useInView.js';
 import { useT } from '../store/app.jsx';
 
 export function Button({
@@ -7,6 +8,8 @@ export function Button({
   variant = 'primary',
   className = '',
   type = 'button',
+  capsule = false,
+  pill = false,
   ...props
 }) {
   const styles = {
@@ -16,14 +19,39 @@ export function Button({
     danger: 'bg-white text-red-600 border border-red-200 hover:bg-red-50',
     fresh: 'bg-fresh text-white hover:bg-fresh-dark',
   };
+  const round = capsule || pill ? 'rounded-full' : 'rounded-2xl';
   return (
     <button
       type={type}
-      className={`min-h-11 w-full rounded-2xl px-4 py-3 text-[15px] font-bold transition active:scale-[0.99] ${styles[variant]} ${className}`}
+      className={`min-h-11 w-full px-4 py-3 text-[15px] font-bold transition active:scale-[0.99] ${
+        capsule ? 'flex items-center justify-between gap-3 pl-5 pr-1.5' : ''
+      } ${round} ${styles[variant]} ${className}`}
       {...props}
     >
-      {children}
+      {capsule ? (
+        <>
+          <span className="text-left leading-snug">{children}</span>
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/20 text-base leading-none">
+            →
+          </span>
+        </>
+      ) : (
+        children
+      )}
     </button>
+  );
+}
+
+export function Reveal({ children, className = '', delay = 0 }) {
+  const [ref, inView] = useInView();
+  return (
+    <div
+      ref={ref}
+      className={`reveal ${inView ? 'is-in' : ''} ${className}`}
+      style={{ transitionDelay: inView ? `${delay}ms` : '0ms' }}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -74,6 +102,13 @@ export function StatusChip({ status }) {
   );
 }
 
+const stepperFill = {
+  accepted: 'bg-primary',
+  baking: 'bg-amber-400',
+  ready: 'bg-fresh',
+  delivered: 'bg-fresh',
+};
+
 export function StatusStepper({ status }) {
   const t = useT();
   const current = statusOrder.indexOf(status);
@@ -81,9 +116,15 @@ export function StatusStepper({ status }) {
     <div className="flex items-center gap-1">
       {statusOrder.map((key, i) => {
         const done = current >= i && status !== 'cancelled';
+        const color = stepperFill[key] || 'bg-primary';
         return (
           <div key={key} className="flex min-w-0 flex-1 flex-col items-center gap-1">
-            <div className={`h-1.5 w-full rounded-full ${done ? 'bg-primary' : 'bg-line'}`} />
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-line">
+              <div
+                className={`h-full rounded-full transition-[width] duration-700 ease-out ${done ? color : 'bg-transparent'}`}
+                style={{ width: done ? '100%' : '0%' }}
+              />
+            </div>
             <span className={`text-[10px] font-semibold ${done ? 'text-ink' : 'text-mute'}`}>
               {t(`status.${key}`)}
             </span>
@@ -201,7 +242,7 @@ export function PasswordInput({ className = '', ...props }) {
 export function FoodTile({ emoji, accent, className = '' }) {
   return (
     <div
-      className={`grid place-items-center rounded-2xl text-3xl ${className}`}
+      className={`grid place-items-center rounded-2xl text-3xl transition-transform duration-300 ease-out motion-safe:hover:scale-[1.02] ${className}`}
       style={{ background: `linear-gradient(145deg, ${accent || '#FF6B3B'}33, #fff8f3)` }}
     >
       <span aria-hidden="true">{emoji}</span>
