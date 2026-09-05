@@ -323,12 +323,8 @@ export async function handle(req, res) {
       const email = String(body.email || '').toLowerCase().trim();
       const password = String(body.password || '');
       const user = await findUserByEmail(email);
-      if (!user) {
-        send(res, 404, { error: 'not_found' });
-        return;
-      }
-      if (!checkPassword(password, user.passwordHash)) {
-        send(res, 401, { error: 'bad_password' });
+      if (!user || !checkPassword(password, user.passwordHash)) {
+        send(res, 401, { error: 'auth' });
         return;
       }
       if (flag(user.blocked)) {

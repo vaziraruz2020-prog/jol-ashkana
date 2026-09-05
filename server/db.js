@@ -43,7 +43,6 @@ const TABLE_FOR = {
 
 let mem = null;
 let pool = null;
-let neonSql = null;
 let pglite = null;
 let ready = false;
 let mode = 'none';
@@ -124,8 +123,14 @@ function rowsOf(result) {
 
 async function connectPostgres(url) {
   if (isNeonUrl(url) || onVercel()) {
-    const { neon } = await import('@neondatabase/serverless');
-    neonSql = neon(url, { fullResults: true });
+    const { Pool, neonConfig } = await import('@neondatabase/serverless');
+    const wsMod = await import('ws');
+    neonConfig.webSocketConstructor = wsMod.default || wsMod;
+    pool = new Pool({
+      connectionString: url,
+      max: onVercel() ? 1 : 5,
+      connectionTimeoutMillis: 8000,
+    });
     return;
   }
   const pg = await import('pg');
@@ -137,7 +142,6 @@ async function connectPostgres(url) {
 }
 
 async function dropPool() {
-  neonSql = null;
   if (!pool) return;
   try {
     await pool.end();
@@ -149,11 +153,6 @@ async function dropPool() {
 
 async function runSql(client, text, params = []) {
   const result = params.length ? await client.query(text, params) : await client.query(text);
-  return rowsOf(result);
-}
-
-async function runNeon(text, params = []) {
-  const result = params.length ? await neonSql(text, params) : await neonSql(text);
   return rowsOf(result);
 }
 
@@ -212,7 +211,6 @@ export function dbMode() {
 
 export async function query(text, params = []) {
   if (pglite) return runSql(pglite, text, params);
-  if (neonSql) return runNeon(text, params);
   if (!pool) throw new Error('db_not_ready');
   return runSql(pool, text, params);
 }
@@ -220,9 +218,6 @@ export async function query(text, params = []) {
 export async function withTransaction(fn) {
   if (pglite) {
     return pglite.transaction(async (tx) => fn((text, params = []) => runSql(tx, text, params)));
-  }
-  if (neonSql) {
-    return fn((text, params = []) => query(text, params));
   }
   if (!pool) {
     return fn(async () => {

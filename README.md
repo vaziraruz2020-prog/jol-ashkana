@@ -20,8 +20,10 @@ Deploy this repo to Vercel (set `DATABASE_URL` + `JWT_SECRET`). Local demo: `npm
 
 Support login is seeded **per database** from `ADMIN_EMAIL` / `ADMIN_PASSWORD`:
 
-- email: `support@jol-ashkana.kg`
+- email: `support@jol-ashkana.local`
 - password: `Support2025!`
+
+These match `.env.example`. If you set `ADMIN_EMAIL` / `ADMIN_PASSWORD` in `.env`, the seeded account uses your values instead.
 
 There are **no fake baker accounts**. Catalog starts empty until a real user opens a kitchen and support verifies it.
 
