@@ -9,23 +9,49 @@ export const en = {
   iAmBuyer: 'I’m a buyer',
   iAmSupport: 'Support',
   social: 'CIS countries · no card payments, no SMS',
-  stepsTitle: 'How it works',
-  steps: [
-    { n: '1', t: 'District', d: 'Country, city, district — kitchens nearby, not the whole city.' },
-    { n: '2', t: 'Tomorrow’s menu', d: 'Price, ingredients and slot up front. No “how much?” in chat.' },
-    { n: '3', t: 'Status', d: 'Accepted → baking → ready → handed over. You and the baker see the same thing.' },
-  ],
-  vsTitle: 'Not Telegram, not a delivery giant',
-  vsPoints: [
-    { bad: 'Telegram: chaos in the thread', good: 'JOL: one menu for the day' },
-    { bad: 'Instagram: pretty, can’t order', good: 'JOL: cart and a time slot' },
-    { bad: 'Apps: 25–35% commission', good: 'JOL: no commission in this version' },
-  ],
   landHow: 'How',
   landWhy: 'Why',
   landBakers: 'Bakers',
-  landBakersTitle: 'Open a kitchen',
-  landBakersBody: 'Same account. Submit the kitchen, wait for support, then put tomorrow’s menu on a wide plate — photo or emoji.',
+  stepsTitle: 'How to order for tomorrow',
+  landHowLead:
+    'A guest does not message the baker. They pick a district, see tomorrow’s menu, and place the order in the app. Price, slot and status live on one screen.',
+  steps: [
+    {
+      n: '1',
+      t: 'District',
+      d: 'Country → city → district. Kitchens nearby, not the whole city. Without a district the catalog stays empty.',
+    },
+    {
+      n: '2',
+      t: 'Tomorrow’s menu',
+      d: 'Price, ingredients, leftover and cutoff are visible at once. No “how much?” and no waiting for a reply.',
+    },
+    {
+      n: '3',
+      t: 'Status',
+      d: 'Accepted → baking → ready → handed over. Guest and baker see the same thing. Cash on handover only.',
+    },
+  ],
+  vsTitle: 'Why this, not a chat',
+  landWhyLead:
+    'People still hunt homemade baking in Telegram and Instagram. There is no price, slot or status — only a thread. JOL puts the order in one place, without a marketplace cut.',
+  landWhyNow: 'Now',
+  landWhyJol: 'In JOL',
+  vsPoints: [
+    { bad: 'Telegram: chaos in the thread, price and slot get lost', good: 'One menu for the day: price, ingredients and slot up front' },
+    { bad: 'Instagram: pretty, but you cannot order', good: 'Cart, time slot and live order status in the app' },
+    { bad: 'Delivery apps: 25–35% commission from the kitchen', good: 'No commission in this version. Cash on handover' },
+  ],
+  landBakersTitle: 'Bakers — same account',
+  landBakersLead:
+    'No second signup. The same person can buy and bake. A kitchen shows in the district only after support verifies it.',
+  landBakersBody:
+    'Send the name, full name, full address and district. Confirm you cook there. After review, put tomorrow’s menu up: photo or emoji, price, leftover. Orders land in the cabinet — you move the status, the guest sees it without a chat.',
+  bakerPath: [
+    { n: '01', t: 'Apply', d: 'Kitchen, address, district, cutoff hour. Support checks it is a real kitchen.' },
+    { n: '02', t: 'Menu', d: 'Dishes for tomorrow: price, ingredients, photo or icon, how many portions left.' },
+    { n: '03', t: 'Orders', d: 'Accepted → baking → ready → handed over. The guest sees the same status.' },
+  ],
   addToCart: 'Add',
   photoLabel: 'Photo',
   photoHint: 'JPG, PNG or WebP. We shrink it automatically.',

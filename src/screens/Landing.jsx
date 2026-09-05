@@ -48,6 +48,16 @@ function CityMarquee({ cities, locale }) {
   );
 }
 
+function SectionHead({ kicker, title, lead }) {
+  return (
+    <header className="mb-5 space-y-2">
+      <p className="text-xs font-extrabold uppercase tracking-[0.28em] text-primary">{kicker}</p>
+      <h2 className="text-2xl font-extrabold tracking-tight sm:text-[1.7rem]">{title}</h2>
+      {lead ? <p className="max-w-xl text-[15px] leading-relaxed text-mute">{lead}</p> : null}
+    </header>
+  );
+}
+
 function scrollToId(id) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -59,6 +69,7 @@ export default function Landing() {
   const { user, geo, locale } = useApp();
   const steps = t('steps');
   const vs = t('vsPoints');
+  const bakerPath = t('bakerPath');
   const [active, setActive] = useState('how');
 
   useEffect(() => {
@@ -79,7 +90,7 @@ export default function Landing() {
   }, []);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-12">
       <section id="hero" className="section-anchor card-cut relative overflow-hidden">
         <div className="relative min-h-[240px] sm:min-h-[300px]">
           <img
@@ -137,12 +148,12 @@ export default function Landing() {
 
       <CityMarquee cities={geo.cities} locale={locale} />
 
-      <section id="how" className="section-anchor">
-        <h2 className="mb-3 text-lg font-extrabold tracking-tight">{t('stepsTitle')}</h2>
+      <section id="how" className="section-anchor scroll-mt-20 border-t border-line/80 pt-8">
+        <SectionHead kicker={t('landHow')} title={t('stepsTitle')} lead={t('landHowLead')} />
         <div className="grid gap-3 sm:grid-cols-3">
           {(Array.isArray(steps) ? steps : []).map((s, i) => (
             <Reveal key={s.n} delay={i * 50}>
-              <div className="card-cut hover-lift hover-cut p-4">
+              <div className="card-cut hover-lift hover-cut h-full p-4">
                 <div className="flex items-center justify-between">
                   <div className="step-num grid h-8 w-8 place-items-center rounded-cut bg-primary-soft text-sm font-extrabold text-primary-dark">
                     {s.n}
@@ -152,24 +163,38 @@ export default function Landing() {
                   </span>
                 </div>
                 <p className="step-title mt-3 font-extrabold tracking-tight">{s.t}</p>
-                <p className="mt-1 text-sm text-mute">{s.d}</p>
+                <p className="mt-1 text-sm leading-relaxed text-mute">{s.d}</p>
               </div>
             </Reveal>
           ))}
         </div>
       </section>
 
-      <section id="why" className="section-anchor">
+      <section id="why" className="section-anchor scroll-mt-20 border-t border-line/80 pt-8">
+        <SectionHead kicker={t('landWhy')} title={t('vsTitle')} lead={t('landWhyLead')} />
         <Reveal>
-          <div className="card-cut p-5">
-            <h2 className="mb-3 text-lg font-extrabold tracking-tight">{t('vsTitle')}</h2>
+          <div className="card-cut overflow-hidden p-4 sm:p-5">
+            <div className="mb-3 hidden grid-cols-2 gap-2 sm:grid">
+              <p className="px-1 text-[11px] font-extrabold uppercase tracking-[0.18em] text-red-700/80">
+                {t('landWhyNow')}
+              </p>
+              <p className="px-1 text-[11px] font-extrabold uppercase tracking-[0.18em] text-fresh-dark">
+                {t('landWhyJol')}
+              </p>
+            </div>
             <div className="space-y-3">
               {(Array.isArray(vs) ? vs : []).map((row) => (
                 <div key={row.bad} className="grid gap-2 sm:grid-cols-2">
-                  <p className="rounded-cut bg-red-50 px-3 py-2 text-sm text-red-700 transition hover:bg-red-100">
+                  <p className="rounded-cut bg-red-50 px-3 py-2.5 text-sm leading-relaxed text-red-800 transition hover:bg-red-100">
+                    <span className="mb-1 block text-[10px] font-extrabold uppercase tracking-[0.16em] text-red-700/70 sm:hidden">
+                      {t('landWhyNow')}
+                    </span>
                     {row.bad}
                   </p>
-                  <p className="rounded-cut bg-fresh-soft px-3 py-2 text-sm text-fresh-dark transition hover:bg-fresh/20">
+                  <p className="rounded-cut bg-fresh-soft px-3 py-2.5 text-sm leading-relaxed text-fresh-dark transition hover:bg-fresh/20">
+                    <span className="mb-1 block text-[10px] font-extrabold uppercase tracking-[0.16em] text-fresh-dark/70 sm:hidden">
+                      {t('landWhyJol')}
+                    </span>
                     {row.good}
                   </p>
                 </div>
@@ -179,7 +204,8 @@ export default function Landing() {
         </Reveal>
       </section>
 
-      <section id="bakers" className="section-anchor">
+      <section id="bakers" className="section-anchor scroll-mt-20 border-t border-line/80 pt-8">
+        <SectionHead kicker={t('landBakers')} title={t('landBakersTitle')} lead={t('landBakersLead')} />
         <Reveal>
           <div className="card-cut overflow-hidden">
             <div className="grid sm:grid-cols-3">
@@ -187,9 +213,17 @@ export default function Landing() {
               <img src="/images/loaf.svg" alt="" className="hidden h-full w-full object-cover sm:block" />
               <img src="/images/pie.svg" alt="" className="hidden h-full w-full object-cover sm:block" />
             </div>
-            <div className="space-y-3 p-5">
-              <h2 className="text-lg font-extrabold tracking-tight">{t('landBakersTitle')}</h2>
-              <p className="text-sm text-mute">{t('landBakersBody')}</p>
+            <div className="space-y-4 p-5">
+              <p className="text-sm leading-relaxed text-ink/80">{t('landBakersBody')}</p>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {(Array.isArray(bakerPath) ? bakerPath : []).map((s) => (
+                  <div key={s.n} className="rounded-cut bg-cream px-3 py-3">
+                    <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-primary">{s.n}</p>
+                    <p className="mt-1 font-extrabold tracking-tight">{s.t}</p>
+                    <p className="mt-1 text-sm leading-relaxed text-mute">{s.d}</p>
+                  </div>
+                ))}
+              </div>
               <Button
                 onClick={async () => {
                   if (!user) {
