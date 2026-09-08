@@ -1,6 +1,6 @@
 # Day 4 — Screens on paper
 
-**JOL-Ashkana** — preorder homemade baking for **tomorrow** in your district. Price, menu, slot, and status live in the app, not in Telegram.
+**JOL-Ashkana** — preorder homemade baking for **tomorrow** in your district. Price, menu, slot, status, and reviews live in the app, not in Telegram.
 
 This pack matches the live app (`Landing`, `Catalog`, `Baker`, `Cart`, `Checkout`, `OrderDetail`, `Cabinet`, plus `Auth` / `Account` / `Admin`). Draw the 7 main screens on paper. Auth, account, and support are short callouts — not extra full pages.
 
@@ -30,12 +30,12 @@ Happy path you can walk on paper in ~60 seconds:
 
 1. Open the link → **Landing**.
 2. Tap **Выбери район и закажи на завтра**.
-3. **Catalog:** country → city → district (e.g. Узбекистан → Ташкент → Юнусабад). See **verified** kitchen cards only. Catalog starts empty until a real baker is verified.
-4. Tap a kitchen → **Menu** (`Baker`). See price, leftover, cutoff.
+3. **Catalog:** country → city → district (e.g. Узбекистан → Ташкент → Юнусабад). See **verified** kitchen cards only (not your own). Catalog starts empty until a real baker is verified. Cards show average stars when there are reviews.
+4. Tap a kitchen → **Menu** (`Baker`). See price, leftover, cutoff, rating, reviews.
 5. Tap **В корзину** on 1–2 dishes.
 6. **Cart** → **К оформлению**. If not logged in → **Log in / Create an account**, then back to checkout.
 7. **Checkout:** pickup or courier, slot, name, phone (≥9 digits), address if courier → **Заказать на завтра**. Cash on handover.
-8. **Order status** (`OrderDetail`): Принят → later the baker moves Печётся → Готово → Выдано. Guest reopens **Заказы** while logged in (live poll, no phone lookup).
+8. **Order status** (`OrderDetail`): Принят → later the baker moves Печётся → Готово → Выдано. After **Выдано**, the guest rates 1–5 stars. Guest reopens **Заказы** while logged in (live poll, no phone lookup).
 
 ### Hard rules on this path
 
@@ -44,11 +44,13 @@ Happy path you can walk on paper in ~60 seconds:
 - Leftover 0 → cannot add.
 - Guest identity = **email account** (HttpOnly JWT). Phone is only a handover contact on checkout.
 - Unverified or hidden kitchens do not appear in the district list.
+- **You cannot order from your own kitchen.** It is hidden from your district list; add-to-cart is off; checkout is rejected.
+- Review only after **handed over**. One review per order. You cannot review your own kitchen.
 - There are **no demo baker accounts** and no seeded kitchens.
 
 ### Baker is not the first scenario
 
-Paper it as a short second strip: Landing → **Я пекарь** → log in / register → submit kitchen → wait for support verify → menu for tomorrow → change order status.
+Paper it as a short second strip: Landing → **Я пекарь** → log in / register → submit kitchen → wait for support verify → menu for tomorrow → change order status → see guest reviews on the kitchen tab.
 
 ---
 
@@ -57,7 +59,7 @@ Paper it as a short second strip: Landing → **Я пекарь** → log in / r
 ```
 [1 Landing] --CTA район--> [2 Catalog] --кухня--> [3 Menu]
     --в корзину--> [4 Cart] --оформить--> [5 Checkout]
-    --заказ--> [6 Status]
+    --заказ--> [6 Status] --after handover--> rate 1–5
 [4/5] --if logged out--> [Login / Register] --back--> [5]
 [1] --Я пекарь--> [7 Cabinet]   (second strip, thinner arrow)
 [Login as support] --> [Admin]   (third strip, thinnest)
@@ -103,7 +105,7 @@ Active tab:
 
 ## The 7 screens
 
-Skip as full pages: toast, replace-cart modal, leftover-out, kitchen editor, add-dish form, login/register, account, admin. Mark those as callouts.
+Skip as full pages: toast, replace-cart modal, leftover-out, kitchen editor, add-dish form, login/register, account, admin, review form as its own page. Mark those as callouts.
 
 ---
 
@@ -165,12 +167,10 @@ Bottom nav **is shown** (Главная). Hero photo, floating pastry plates, ci
 │  ( Ташкент ) Самарканд  …       │
 │  ( Юнусабад ) Чиланзар  …       │
 │                                 │
-│  Завтра рядом  [horizontal peek]│
-│                                 │
 │  ┌───────────────────────────┐  │
 │  │ [🥐]  Пекарня …           │  │
+│  │       ★ 4.8 (3)           │  │
 │  │       адрес · до 20:00    │  │
-│  │       самса 12 000 · …    │  │
 │  └───────────────────────────┘  │
 │  Главная  Район  Корзина  …     │
 └─────────────────────────────────┘
@@ -182,11 +182,10 @@ Bottom nav **is shown** (Главная). Hero photo, floating pastry plates, ci
 | Row 1 | CIS countries |
 | Row 2 | Cities of that country |
 | Row 3 | Districts of that city |
-| Peek strip | «Завтра рядом» — first verified kitchens |
-| Cards | Only `verified` and not hidden. Emoji/photo, name, address, dish prices, cutoff |
+| Cards | Only `verified` and not hidden, **and not the logged-in owner’s kitchen**. Photo/emoji, name, **stars if any reviews**, address, cutoff |
 
 **Empty A:** no district → *Сначала выбери страну, город и район.*  
-**Empty B:** district with no kitchens → *В этом районе пока нет кухонь. Стань первым пекарем.* CTA **Открыть кухню** → register or baker cabinet.  
+**Empty B:** district with no kitchens (or only your own) → *В этом районе пока нет кухонь. Стань первым пекарем.* CTA **Открыть кухню** → register or baker cabinet.  
 **Tap card → screen 3.**
 
 ---
@@ -199,40 +198,41 @@ Bottom nav **is shown** (Главная). Hero photo, floating pastry plates, ci
 ├─────────────────────────────────┤
 │  ┌───────────────────────────┐  │
 │  │ [🥐]  Название кухни      │  │
-│  │ Юнусабад · адрес          │  │
+│  │ ★ 4.8 (3)                 │  │
+│  │ адрес                     │  │
 │  │ bio                       │  │
 │  │ Приём до 20:00 · на завтра│  │
+│  │ [Пожаловаться]            │  │
 │  └───────────────────────────┘  │
 │                                 │
 │  [amber if late] заказ уйдёт    │
 │  на послезавтра                 │
 │                                 │
-│  Категория                      │
 │  ┌───────────────────────────┐  │
 │  │ [🥟] Самса        12 000  │  │
 │  │      состав · остаток     │  │
 │  │              [В корзину]  │  │
 │  └───────────────────────────┘  │
 │                                 │
-│  ┌───────────────────────────┐  │
-│  │  2 · 24 000     Корзина → │  │  sticky bar
-│  └───────────────────────────┘  │
+│  Отзывы                         │
+│  ★★★★★  Имя · дата · текст     │
 │  Главная  Район  Корзина  …     │
 └─────────────────────────────────┘
 ```
 
 | Zone | What to draw |
 |---|---|
-| Header card | Photo or emoji, name, district, bio, *Приём до HH:00 · на завтра*, address |
+| Header card | Photo or emoji, name, **rating**, bio, address, *Приём до HH:00 · на завтра*, report (if logged in and not owner) |
+| Own kitchen | Banner: *Это ваша кухня. Закажите у другого пекаря.* No **В корзину**. |
 | Late banner | Amber if past cutoff: order goes to the day after tomorrow |
-| Groups | Category → rows: photo/emoji, name, ingredients, price, leftover. CTA **В корзину** or **На завтра уже нет** |
-| Sticky bar | `N · сумма` → Корзина |
+| Dishes | Photo/emoji, name, ingredients, price, leftover. CTA **В корзину** or **На завтра нет** |
+| Reviews | List under the menu. Empty: *Отзывов пока нет.* |
 
 **Callouts (do not draw as full screens)**
 
-- **Modal:** cart is another kitchen → *В корзине блюда другой пекарни. Заменить?* **Заменить** / **Оставить**.
+- **Modal:** cart is another kitchen → *В корзине блюда другой кухни. Заменить?* **Заменить** / **Оставить**.
 - **Toast:** *Добавлено в корзину.*
-- Leftover 0 / few: *На завтра уже нет* / *Осталось мало*.
+- Leftover 0 / few: *На завтра нет* / *Мало*.
 
 ---
 
@@ -243,14 +243,14 @@ Bottom nav **is shown** (Главная). Hero photo, floating pastry plates, ci
 │  [JA]  JOL-Ashkana              │
 ├─────────────────────────────────┤
 │  Корзина                        │
-│  Пекарня · короткий адрес       │
 │                                 │
 │  ┌───────────────────────────┐  │
-│  │ [🥟] Самса     12 000     │  │
+│  │ Самса          12 000     │  │
 │  │              [ − ] 1 [ + ]│  │
 │  └───────────────────────────┘  │
 │                                 │
 │  Итого              24 000      │
+│  Наличные при получении         │
 │  ┌───────────────────────────┐  │
 │  │      К оформлению         │  │
 │  └───────────────────────────┘  │
@@ -260,11 +260,13 @@ Bottom nav **is shown** (Главная). Hero photo, floating pastry plates, ci
 
 | Zone | What to draw |
 |---|---|
-| Title | Корзина. Sub: kitchen name · address |
-| Lines | Photo/emoji, name, price, − qty + |
-| Footer | Итого. **К оформлению** → checkout, or login if logged out |
+| Title | Корзина |
+| Lines | Name, price, − qty + |
+| Footer | Итого. Cash note. **К оформлению** → checkout, or login if logged out |
 
-**Empty:** *Корзина пустая. Выбери район и добавь блюда на завтра.* + CTA back to catalog.
+**Empty:** *Корзина пуста. Выбери район и добавь блюда на завтра.* + CTA back to catalog.
+
+**Blocked (own / rejected / hidden kitchen):** red note + **Очистить корзину**. No checkout.
 
 ---
 
@@ -276,7 +278,7 @@ Must be logged in. If not → Login (callout), then this screen.
 ┌─────────────────────────────────┐
 │  [JA]  JOL-Ashkana              │
 ├─────────────────────────────────┤
-│  Оформление                     │
+│  Оформить заказ                 │
 │  Наличные при самовывозе        │
 │  или курьеру. Без карт.         │
 │                                 │
@@ -289,9 +291,9 @@ Must be logged in. If not → Login (callout), then this screen.
 │  Слот        (10:00–12:00) …    │
 │  Комментарий [               ]  │
 │                                 │
+│  Итого 24 000                   │
 │  ┌───────────────────────────┐  │
 │  │   Заказать на завтра      │  │
-│  │         Итого 24 000      │  │
 │  └───────────────────────────┘  │
 │  Главная  Район  Корзина  …     │
 └─────────────────────────────────┘
@@ -299,18 +301,18 @@ Must be logged in. If not → Login (callout), then this screen.
 
 | Zone | What to draw |
 |---|---|
-| Title | Оформление. Cash-on-handover banner |
+| Title | Оформить заказ. Cash-on-handover banner |
 | Fields | Name (from account), phone (handover contact, ≥9 digits) |
 | Delivery | **Самовывоз** / **Курьер** — only modes the kitchen has |
-| Slot | Chips from geo slots |
+| Slot | Select from geo slots |
 | Submit | **Заказать на завтра** + total |
 
 **Errors (stay on this screen)**
 
-- Name empty → *Как к вам обращаться?*
-- Phone &lt; 9 digits → *Введите телефон — не меньше 9 цифр.*
+- Name empty → *Как к тебе обращаться?*
+- Phone &lt; 9 digits → *Введи телефон — не меньше 9 цифр.*
 - Courier without address → *Для курьера нужен адрес.*
-- Leftover ran out → toast *На завтра уже нет.*
+- Own kitchen → empty state, clear cart.
 
 **Success → screen 6.**
 
@@ -318,39 +320,41 @@ Must be logged in. If not → Login (callout), then this screen.
 
 ### 6. Order status (`OrderDetail`)
 
-Guest return visit: **Заказы** while logged in → list (polls ~7s) → this screen. No phone-lookup form.
+Guest return visit: **Заказы** while logged in → list (polls) → this screen. No phone-lookup form.
 
 ```
 ┌─────────────────────────────────┐
 │  [JA]  JOL-Ashkana              │
 ├─────────────────────────────────┤
-│  ┌───────────────────────────┐  │
-│  │ JA-…                      │  │
-│  │ Заказ оформлен            │  │
-│  │ Кухня · на 12 мая · слот  │  │
-│  │                           │  │
-│  │ ● Принят — Печётся —      │  │
-│  │   Готово — Выдано         │  │
-│  │ Статус меняет пекарь.     │  │
-│  └───────────────────────────┘  │
+│  Кухня                          │
+│  дата · самовывоз · слот        │
+│  JA-…                           │
+│                                 │
+│  ● Принят — Печётся —           │
+│    Готово — Выдано              │
 │                                 │
 │  Самса ×2              24 000   │
 │  Итого                 24 000   │
-│  Получение: Самовывоз           │
 │                                 │
-│  [ Заказать снова ]             │
-│  [ Отменить ]  ← only if Принят │
-│  [ Сообщить о проблеме ]        │
+│  [after Выдано]                 │
+│  Оцените кухню                  │
+│  ★★★★★  комментарий             │
+│  [ Отправить отзыв ]            │
+│                                 │
+│  [ Пожаловаться ]               │
 │  Главная  Район  Корзина  …     │
 └─────────────────────────────────┘
 ```
 
 | Zone | What to draw |
 |---|---|
-| Card | Order id, kitchen · date · slot |
+| Card | Kitchen, date, delivery, slot, order id |
 | Stepper | Принят → Печётся → Готово → Выдано (updates live) |
-| Lines | items × qty, Итого, delivery, phone |
-| Actions | **Заказать снова**. If Принят: **Отменить**. Report problem → support ticket |
+| Lines | items × qty, Итого |
+| After handover | **Оцените кухню**: stars required, comment optional. After save: show the review. |
+| Actions | Report problem → support ticket (not a review) |
+
+**Orders list:** each row can show **Оценить** if handed over and not yet reviewed.
 
 **Orders list empty:** *Заказов пока нет.* CTA to catalog. Logged out → Login.
 
@@ -382,6 +386,8 @@ Same account. Switch to baker. Kitchen is **pending** until support verifies. Gu
 │  │ [Принят][Печётся][Готово] │  │
 │  │ [Выдано]                  │  │
 │  └───────────────────────────┘  │
+│                                 │
+│  Кухня tab: ★ рейтинг + отзывы  │
 │  Главная  …  Пекарь  Аккаунт    │
 └─────────────────────────────────┘
 ```
@@ -391,8 +397,9 @@ Same account. Switch to baker. Kitchen is **pending** until support verifies. Gu
 | Header | Кабинет пекаря. Tabs **Заказы** · **Меню** · **Кухня** |
 | If no kitchen | Form: name, owner full name, full address, district, cutoff, pickup/courier, confirm “I cook here” → **Отправить на проверку** |
 | Pending | Amber: kitchen not in the district list yet |
-| Orders | Guest, phone, slot, items, sum, **status buttons** (polls ~5s) |
+| Orders | Guest, phone, slot, items, sum, **status buttons** (polls) |
 | Menu | Dishes for tomorrow: photo or emoji, price, leftover, on/off. **Добавить блюдо** |
+| Kitchen tab | Public rating + guest reviews. Baker cannot review themselves. |
 
 Guest and baker see the **same** status words: Принят, Печётся, Готово, Выдано.
 
@@ -414,6 +421,10 @@ Name, role switch buyer/baker, geo, logout. Blocked users land here.
 
 Seeded account only. Tabs: kitchens (verify / reject / hide), orders (cancel), tickets, users (block with reason).
 
+### Review form
+
+Not a separate page. Lives on **Order status** after **Выдано**. Stars 1–5 required. Comment 4–400 characters or empty.
+
 ---
 
 ## What not to draw
@@ -427,9 +438,10 @@ Keeps the set to 7 screens:
 - Add-dish form as its own page
 - Login / register / account / admin as own pages (callouts only)
 - Phone-lookup page — **removed**; orders are on the account
+- Review as its own page — it sits on order status
 
 ---
 
 ## Defense, 15 seconds
 
-«Гость выбирает район, видит меню и цену на завтра, кладёт в корзину. Чтобы оформить — входит по email. Пекарь с того же аккаунта отправляет кухню на проверку. После verify гости видят меню. Пекарь двигает статус — гость видит то же без чата. Наличные при передаче.»
+«Гость выбирает район, видит меню, цену и рейтинг на завтра, кладёт в корзину. Чтобы оформить — входит по email. Свою кухню заказать нельзя. Пекарь с того же аккаунта отправляет кухню на проверку. После verify гости видят меню. Пекарь двигает статус — гость видит то же без чата. После выдачи — звёзды. Наличные при передаче.»

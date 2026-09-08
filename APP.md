@@ -1,8 +1,12 @@
 # JOL-Ashkana — how to try it
 
-Locally the app uses **embedded Postgres** (PGlite): real SQL, migrations, leftover transactions. On Vercel it uses Neon when `DATABASE_URL` is set. Guest, baker and support share the same orders and kitchens. One account can buy and bake.
+Locally the app uses **embedded Postgres** (PGlite): real SQL, migrations, leftover transactions, reviews. On Vercel it uses Neon when `DATABASE_URL` is set. Guest, baker and support share the same orders and kitchens.
+
+One account can buy and bake. **You cannot place an order with yourself** — your kitchen is hidden from your district list, add-to-cart is off on that page, and the API rejects checkout.
 
 Order screens poll every few seconds, so a baker status change shows up for the guest without a reload.
+
+After the baker marks an order **handed over**, the guest can leave **1–5 stars** and an optional comment. That average shows on catalog cards, the kitchen page, and the baker’s kitchen tab. Report-to-support is separate and still works.
 
 ## Run the app
 
@@ -19,18 +23,21 @@ Open **http://localhost:5173** — that is the website.
 
 There are no demo baker accounts. Catalog is empty until someone submits a kitchen and support verifies it.
 
+Restart `npm run dev` after new migrations so tables such as `reviews` exist.
+
 ---
 
 ## 1. Buyer
 
 1. Register (email + password).
 2. Country → city → district.
-3. Open a verified kitchen, add dishes, checkout.
+3. Open a verified kitchen that is **not yours**, add dishes, checkout.
 4. Cash on pickup or to the courier.
 5. Track the order: accepted → baking → ready → handed over.
-6. Report a problem if needed.
+6. After handover: rate the kitchen (stars required, comment optional). One review per order.
+7. Report a problem if needed.
 
-Fails on purpose: short phone, courier without address, leftover 0, unverified kitchen.
+Fails on purpose: short phone, courier without address, leftover 0, unverified kitchen, **ordering from your own kitchen**.
 
 ---
 
@@ -41,6 +48,9 @@ Same account → baker mode.
 1. Submit kitchen (name, full name, address, district, cutoff, confirm you cook there).
 2. Wait for support to verify. Until then the kitchen is not in the district list.
 3. Menu for tomorrow, leftover, order statuses.
+4. Guest reviews show on the **Kitchen** tab. You cannot review your own kitchen.
+
+When you switch back to buyer mode, your kitchen does not appear as a shop in the district. Open it from the baker cabinet if you need to check the public page — add-to-cart stays off.
 
 ---
 

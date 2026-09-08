@@ -2,7 +2,9 @@
 
 Home baking for tomorrow. Not a chat dump, not a 30% delivery marketplace.
 
-Guests pick a country, city and district, see tomorrow’s menu with a price and a slot, pay **cash on handover**. Bakers run a kitchen after support verifies it. One account can buy and bake.
+Guests pick a country, city and district, see tomorrow’s menu with a price and a slot, pay **cash on handover**. Bakers run a kitchen after support verifies it. One account can buy and bake — but **you cannot order from your own kitchen**.
+
+After handover, the guest can leave **1–5 stars** and an optional comment. That score shows on catalog cards, the kitchen page, and the baker’s kitchen tab.
 
 ## Two environments
 
@@ -36,6 +38,7 @@ There are **no fake baker accounts**. Catalog starts empty until a real user ope
 - HttpOnly JWT cookie, bcrypt passwords
 - Russian + English
 - Live order status via short polling (guest, baker, support)
+- Reviews after handover (one review per order)
 
 ## Run locally
 
@@ -52,6 +55,8 @@ API: http://127.0.0.1:8787 (proxied as `/api`)
 Health: http://127.0.0.1:8787/api/health → `{ "ok": true, "db": "pglite" }`
 
 Opening port 8787 in a browser is the API, not the app.
+
+Restart `npm run dev` after pulling new migrations (including `reviews`) so the API can create new tables.
 
 ## Optional: Docker / Neon Postgres
 
@@ -74,10 +79,13 @@ npm run db:import
 
 1. Create an account (email + password, no SMS).
 2. Pick country → city → district.
-3. Open a verified kitchen, add dishes, checkout.
+3. Open a **verified** kitchen that is **not yours**, add dishes, checkout.
 4. Pay cash at pickup or to the courier.
 5. Track: accepted → baking → ready → handed over (updates live).
-6. Report a problem to support.
+6. After handover: rate 1–5 stars (comment optional). One review per order.
+7. Report a problem to support if needed.
+
+You cannot add dishes from your own kitchen. It does not show in your district list while you are logged in as the owner. Checkout is rejected if you still try.
 
 ## What a baker does
 
@@ -86,6 +94,7 @@ Same account, switch to baker mode.
 1. Submit kitchen: name, owner full name, full address, district, cutoff hour, pickup/courier, confirm “I cook here”.
 2. Status is **pending** until support verifies. Guests do not see it yet.
 3. After verify: menu for tomorrow, leftover counts, order statuses.
+4. Guest reviews appear on the kitchen tab. You cannot review your own kitchen.
 
 ## What support does
 
@@ -119,4 +128,4 @@ Login is the **Log in** form (`#/login`), not `/api/login` in the address bar.
 
 ## Product notes
 
-See `APP.md` for the original problem framing (Telegram chaos vs 25–35% delivery apps).
+See `APP.md` for how to walk the live flows. See `SCREENS.md` for the paper screens that match this build.
