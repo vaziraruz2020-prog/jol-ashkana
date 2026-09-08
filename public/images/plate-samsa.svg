@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 360" fill="none">
+  <defs>
+    <radialGradient id="samsaBg" cx="50%" cy="30%" r="80%">
+      <stop offset="0%" stop-color="#FFE8D2"/>
+      <stop offset="55%" stop-color="#F3C9A4"/>
+      <stop offset="100%" stop-color="#D9A078"/>
+    </radialGradient>
+    <radialGradient id="samsaPlate" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#FFF8F1"/>
+      <stop offset="70%" stop-color="#E8D5C4"/>
+      <stop offset="100%" stop-color="#CDB39A"/>
+    </radialGradient>
+    <linearGradient id="samsaCrust" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFE09A"/>
+      <stop offset="45%" stop-color="#E39B4A"/>
+      <stop offset="100%" stop-color="#B86A22"/>
+    </linearGradient>
+    <filter id="samsaSoft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+  </defs>
+  <rect width="480" height="360" fill="url(#samsaBg)"/>
+  <ellipse cx="240" cy="292" rx="150" ry="22" fill="#8B5A32" opacity=".22" filter="url(#samsaSoft)"/>
+  <ellipse cx="240" cy="250" rx="168" ry="58" fill="url(#samsaPlate)"/>
+  <ellipse cx="240" cy="242" rx="148" ry="46" fill="#F7E6D4"/>
+  <ellipse cx="240" cy="238" rx="132" ry="38" fill="#EED6BE" opacity=".7"/>
+  <path d="M132 214 L240 118 L348 214 L300 246 L180 246 Z" fill="url(#samsaCrust)"/>
+  <path d="M148 210 L240 132 L332 210 L292 236 L188 236 Z" fill="#F4C56A"/>
+  <path d="M176 208 L240 154 L304 208 L278 226 L202 226 Z" fill="#FFE09A" opacity=".85"/>
+  <path d="M240 118 L240 246" stroke="#C56A2A" stroke-width="2.4" opacity=".35"/>
+  <path d="M168 196 L240 158 L312 196" stroke="#FFF6D6" stroke-width="3" stroke-linecap="round" opacity=".45"/>
+  <circle cx="214" cy="198" r="5" fill="#8B4518" opacity=".35"/>
+  <circle cx="258" cy="204" r="4" fill="#8B4518" opacity=".28"/>
+  <circle cx="236" cy="186" r="3.5" fill="#6B3410" opacity=".3"/>
+  <ellipse cx="188" cy="168" rx="28" ry="12" fill="#FFF6D6" opacity=".35"/>
+</svg>

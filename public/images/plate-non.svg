@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 360" fill="none">
+  <defs>
+    <radialGradient id="nonBg" cx="40%" cy="20%" r="85%">
+      <stop offset="0%" stop-color="#FFF3E8"/>
+      <stop offset="50%" stop-color="#F0C9A0"/>
+      <stop offset="100%" stop-color="#C47A3A"/>
+    </radialGradient>
+    <radialGradient id="nonBread" cx="42%" cy="38%" r="70%">
+      <stop offset="0%" stop-color="#FFE09A"/>
+      <stop offset="55%" stop-color="#E39B4A"/>
+      <stop offset="100%" stop-color="#A85A1E"/>
+    </radialGradient>
+    <filter id="nonBlur" x="-15%" y="-15%" width="130%" height="130%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+  </defs>
+  <rect width="480" height="360" fill="url(#nonBg)"/>
+  <ellipse cx="240" cy="300" rx="140" ry="18" fill="#6B3F1F" opacity=".2" filter="url(#nonBlur)"/>
+  <ellipse cx="240" cy="208" rx="132" ry="118" fill="url(#nonBread)"/>
+  <ellipse cx="228" cy="190" rx="108" ry="96" fill="#F4C56A" opacity=".55"/>
+  <ellipse cx="240" cy="208" rx="54" ry="48" fill="#C47A3A"/>
+  <ellipse cx="240" cy="208" rx="38" ry="34" fill="#8B4518" opacity=".45"/>
+  <circle cx="240" cy="208" r="6" fill="#FFE09A"/>
+  <g stroke="#8B4518" stroke-width="3" stroke-linecap="round" opacity=".4">
+    <path d="M240 160 v-28"/>
+    <path d="M240 256 v28"/>
+    <path d="M192 208 h-28"/>
+    <path d="M288 208 h28"/>
+    <path d="M206 174 l-20-20"/>
+    <path d="M274 242 l20 20"/>
+    <path d="M274 174 l20-20"/>
+    <path d="M206 242 l-20 20"/>
+  </g>
+  <g fill="#6B3410" opacity=".35">
+    <circle cx="214" cy="176" r="3.5"/>
+    <circle cx="268" cy="180" r="3"/>
+    <circle cx="272" cy="230" r="3.2"/>
+    <circle cx="210" cy="236" r="2.8"/>
+    <circle cx="240" cy="158" r="2.6"/>
+    <circle cx="186" cy="208" r="2.4"/>
+  </g>
+  <ellipse cx="196" cy="168" rx="36" ry="16" fill="#FFF6D6" opacity=".28"/>
+</svg>
