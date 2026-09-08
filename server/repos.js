@@ -11,7 +11,7 @@ import {
   updateRow,
   withTransaction,
 } from './db.js';
-import { publicDish, publicOrder } from './serialize.js';
+import { publicDish, publicOrder, publicReview } from './serialize.js';
 import {
   flag,
   kitchenUnavailableCode,
@@ -181,17 +181,139 @@ async function listKitchensByIds(ids) {
   return query('SELECT * FROM kitchens WHERE id = ANY($1::text[])', [unique]);
 }
 
+export async function ratingSummariesByKitchenIds(ids) {
+  const unique = [...new Set(ids.filter(Boolean))];
+  const out = {};
+  if (!unique.length) return out;
+  if (!isPostgres()) {
+    const rows = memList('reviews', (r) => unique.includes(r.kitchenId) && !flag(r.hidden));
+    const by = {};
+    for (const r of rows) {
+      if (!by[r.kitchenId]) by[r.kitchenId] = { sum: 0, count: 0 };
+      by[r.kitchenId].sum += Number(r.rating) || 0;
+      by[r.kitchenId].count += 1;
+    }
+    for (const [id, v] of Object.entries(by)) {
+      out[id] = { ratingAvg: Math.round((v.sum / v.count) * 10) / 10, ratingCount: v.count };
+    }
+    return out;
+  }
+  const rows = await query(
+    `SELECT kitchen_id, AVG(rating) AS rating_avg, COUNT(*) AS rating_count
+     FROM reviews
+     WHERE hidden = FALSE AND kitchen_id = ANY($1::text[])
+     GROUP BY kitchen_id`,
+    [unique],
+  );
+  for (const r of rows) {
+    const count = Number(r.ratingCount) || 0;
+    out[r.kitchenId] = {
+      ratingAvg: count ? Math.round(Number(r.ratingAvg) * 10) / 10 : null,
+      ratingCount: count,
+    };
+  }
+  return out;
+}
+
+export function applyKitchenRatings(kitchen, summaries) {
+  if (!kitchen) return kitchen;
+  const s = summaries[kitchen.id] || { ratingAvg: null, ratingCount: 0 };
+  return { ...kitchen, ratingAvg: s.ratingAvg, ratingCount: s.ratingCount || 0 };
+}
+
+export async function toPublicKitchens(list, opts = {}) {
+  const { publicKitchen } = await import('./serialize.js');
+  const summaries = await ratingSummariesByKitchenIds(list.map((k) => k.id));
+  return list.map((k) => publicKitchen(applyKitchenRatings(k, summaries), opts));
+}
+
+export async function listReviewsByKitchen(kitchenId) {
+  if (!kitchenId) return [];
+  if (!isPostgres()) {
+    return memList('reviews', (r) => r.kitchenId === kitchenId && !flag(r.hidden)).sort((a, b) =>
+      String(b.createdAt).localeCompare(String(a.createdAt)),
+    );
+  }
+  return query(
+    'SELECT * FROM reviews WHERE kitchen_id = $1 AND hidden = FALSE ORDER BY created_at DESC',
+    [kitchenId],
+  );
+}
+
+export async function publicReviewsForKitchen(kitchenId) {
+  const rows = await listReviewsByKitchen(kitchenId);
+  const users = await listUsersByIds(rows.map((r) => r.authorUserId));
+  const byId = Object.fromEntries(users.map((u) => [u.id, u]));
+  return rows.map((r) => publicReview(r, byId[r.authorUserId]));
+}
+
+export async function findReviewByOrderId(orderId) {
+  if (!orderId) return null;
+  if (!isPostgres()) return memList('reviews', (r) => r.orderId === orderId)[0] || null;
+  const rows = await query('SELECT * FROM reviews WHERE order_id = $1', [orderId]);
+  return rows[0] || null;
+}
+
+async function listReviewsByOrderIds(orderIds) {
+  const unique = [...new Set(orderIds.filter(Boolean))];
+  if (!unique.length) return [];
+  if (!isPostgres()) return memList('reviews', (r) => unique.includes(r.orderId));
+  return query('SELECT * FROM reviews WHERE order_id = ANY($1::text[])', [unique]);
+}
+
+export async function insertReview(row) {
+  return insertRow('reviews', row);
+}
+
+export async function createReview({ order, user, rating, body }) {
+  if (!order) throw new ApiError('not_found', 404);
+  if (order.buyerUserId !== user.id) throw new ApiError('forbidden', 403);
+  if (order.status !== 'delivered') throw new ApiError('not_ready');
+  const kitchen = await findKitchenById(order.kitchenId);
+  if (!kitchen) throw new ApiError('not_found', 404);
+  if (kitchen.ownerUserId === user.id) throw new ApiError('own_kitchen');
+  const existing = await findReviewByOrderId(order.id);
+  if (existing) throw new ApiError('exists', 409);
+  const n = Math.round(Number(rating));
+  if (!Number.isFinite(n) || n < 1 || n > 5) throw new ApiError('fields');
+  const text = String(body || '').trim();
+  if (text && (text.length < 4 || text.length > 400)) throw new ApiError('fields');
+  const row = await insertReview({
+    id: newId('rev'),
+    orderId: order.id,
+    kitchenId: order.kitchenId,
+    authorUserId: user.id,
+    rating: n,
+    body: text,
+    hidden: false,
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+  });
+  return publicReview(row, user);
+}
+
 export async function attachOrders(orders) {
   if (!orders.length) return [];
   const items = await listItemsByOrderIds(orders.map((o) => o.id));
   const kitchens = await listKitchensByIds(orders.map((o) => o.kitchenId));
+  const reviews = await listReviewsByOrderIds(orders.map((o) => o.id));
+  const authors = await listUsersByIds(reviews.map((r) => r.authorUserId));
   const itemsBy = {};
   for (const item of items) {
     if (!itemsBy[item.orderId]) itemsBy[item.orderId] = [];
     itemsBy[item.orderId].push(item);
   }
-  const kitBy = Object.fromEntries(kitchens.map((k) => [k.id, k]));
-  return orders.map((o) => publicOrder(o, { items: itemsBy[o.id] || [], kitchen: kitBy[o.kitchenId] || null }));
+  const summaries = await ratingSummariesByKitchenIds(kitchens.map((k) => k.id));
+  const kitBy = Object.fromEntries(kitchens.map((k) => [k.id, applyKitchenRatings(k, summaries)]));
+  const authorBy = Object.fromEntries(authors.map((u) => [u.id, u]));
+  const reviewBy = Object.fromEntries(reviews.map((r) => [r.orderId, publicReview(r, authorBy[r.authorUserId])]));
+  return orders.map((o) =>
+    publicOrder(o, {
+      items: itemsBy[o.id] || [],
+      kitchen: kitBy[o.kitchenId] || null,
+      review: reviewBy[o.id] || null,
+    }),
+  );
 }
 
 export async function attachOrder(order) {

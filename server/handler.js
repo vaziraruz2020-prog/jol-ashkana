@@ -7,6 +7,7 @@ import {
   attachOrders,
   cancelOpenKitchenOrders,
   createOrder,
+  createReview,
   findCityById,
   findDishById,
   findDistrictById,
@@ -32,7 +33,9 @@ import {
   listUsers,
   listUsersByIds,
   newId,
+  publicReviewsForKitchen,
   searchAdminOrders,
+  toPublicKitchens,
   updateDish,
   updateKitchen,
   updateOrderStatus,
@@ -242,9 +245,10 @@ function requireSupport(user, res) {
 
 async function mePayload(user) {
   const kitchen = await findKitchenByOwner(user.id);
+  const kitchens = kitchen ? await toPublicKitchens([kitchen], { includePrivate: true }) : [];
   return {
     user: publicUser(user),
-    kitchen: kitchen ? publicKitchen(kitchen, { includePrivate: true }) : null,
+    kitchen: kitchens[0] || null,
   };
 }
 
@@ -443,7 +447,7 @@ export async function handle(req, res) {
         return kitchenVisible(k, byId[k.ownerUserId]);
       });
       send(res, 200, {
-        kitchens: filtered.map((k) => publicKitchen(k, { includePrivate: Boolean(user && flag(user.isSupport)) })),
+        kitchens: await toPublicKitchens(filtered, { includePrivate: Boolean(user && flag(user.isSupport)) }),
       });
       return;
     }
@@ -464,11 +468,13 @@ export async function handle(req, res) {
         return;
       }
       const dishes = (await listDishesByKitchen(kitchen.id)).map(publicDish);
+      const [pub] = await toPublicKitchens([kitchen], {
+        includePrivate: Boolean(user && (user.id === kitchen.ownerUserId || flag(user.isSupport))),
+      });
       send(res, 200, {
-        kitchen: publicKitchen(kitchen, {
-          includePrivate: Boolean(user && (user.id === kitchen.ownerUserId || flag(user.isSupport))),
-        }),
+        kitchen: pub,
         dishes,
+        reviews: await publicReviewsForKitchen(kitchen.id),
       });
       return;
     }
@@ -478,11 +484,16 @@ export async function handle(req, res) {
       if (!requireUser(user, res)) return;
       const kitchen = await findKitchenByOwner(user.id);
       if (!kitchen) {
-        send(res, 200, { kitchen: null, dishes: [] });
+        send(res, 200, { kitchen: null, dishes: [], reviews: [] });
         return;
       }
       const dishes = (await listDishesByKitchen(kitchen.id)).map(publicDish);
-      send(res, 200, { kitchen: publicKitchen(kitchen, { includePrivate: true }), dishes });
+      const [pub] = await toPublicKitchens([kitchen], { includePrivate: true });
+      send(res, 200, {
+        kitchen: pub,
+        dishes,
+        reviews: await publicReviewsForKitchen(kitchen.id),
+      });
       return;
     }
 
@@ -550,7 +561,8 @@ export async function handle(req, res) {
         });
       }
       if (user.activeRole !== 'baker') await updateUser(user.id, { activeRole: 'baker' });
-      send(res, 200, { kitchen: publicKitchen(kitchen, { includePrivate: true }) });
+      const [pub] = await toPublicKitchens([kitchen], { includePrivate: true });
+      send(res, 200, { kitchen: pub });
       return;
     }
 
@@ -668,6 +680,25 @@ export async function handle(req, res) {
       return;
     }
 
+    const orderReview = hit('POST', '/api/orders/:id/review');
+    if (orderReview) {
+      const user = await currentUser(req);
+      if (!requireUser(user, res)) return;
+      const order = await findOrderById(orderReview.id);
+      if (!order) {
+        send(res, 404, { error: 'not_found' });
+        return;
+      }
+      const body = await getBody(req);
+      try {
+        const review = await createReview({ order, user, rating: body.rating, body: body.body });
+        send(res, 201, { review });
+      } catch (err) {
+        if (!sendErr(res, err)) throw err;
+      }
+      return;
+    }
+
     const orderOne = hit('GET', '/api/orders/:id');
     if (orderOne) {
       const user = await currentUser(req);
@@ -767,7 +798,7 @@ export async function handle(req, res) {
       const user = await currentUser(req);
       if (!requireSupport(user, res)) return;
       const kitchens = await listAllKitchens();
-      send(res, 200, { kitchens: kitchens.map((k) => publicKitchen(k, { includePrivate: true })) });
+      send(res, 200, { kitchens: await toPublicKitchens(kitchens, { includePrivate: true }) });
       return;
     }
 
@@ -806,7 +837,8 @@ export async function handle(req, res) {
         targetId: kitchen.id,
         payload: patch,
       });
-      send(res, 200, { kitchen: publicKitchen(next, { includePrivate: true }) });
+      const [pub] = await toPublicKitchens([next], { includePrivate: true });
+      send(res, 200, { kitchen: pub });
       return;
     }
 

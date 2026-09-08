@@ -18,8 +18,16 @@ export function publicUser(u) {
   };
 }
 
+export function publicAuthorName(name) {
+  const first = String(name || '')
+    .trim()
+    .split(/\s+/)[0];
+  return first || '';
+}
+
 export function publicKitchen(k, { includePrivate = false } = {}) {
   if (!k) return null;
+  const ratingCount = Number(k.ratingCount) || 0;
   const base = {
     id: k.id,
     ownerUserId: k.ownerUserId,
@@ -37,6 +45,8 @@ export function publicKitchen(k, { includePrivate = false } = {}) {
     photoUrl: k.photoUrl || '',
     verificationStatus: k.verificationStatus,
     hidden: flag(k.hidden),
+    ratingAvg: ratingCount ? Math.round(Number(k.ratingAvg) * 10) / 10 : null,
+    ratingCount,
   };
   if (includePrivate) {
     base.ownerFullName = k.ownerFullName || '';
@@ -63,7 +73,20 @@ export function publicDish(d) {
   };
 }
 
-export function publicOrder(order, { items = [], kitchen = null } = {}) {
+export function publicReview(row, author) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    kitchenId: row.kitchenId,
+    orderId: row.orderId,
+    rating: Number(row.rating) || 0,
+    body: row.body || '',
+    authorName: publicAuthorName(author?.name || row.authorName),
+    createdAt: row.createdAt,
+  };
+}
+
+export function publicOrder(order, { items = [], kitchen = null, review = null } = {}) {
   if (!order) return null;
   return {
     ...order,
@@ -73,5 +96,6 @@ export function publicOrder(order, { items = [], kitchen = null } = {}) {
     total: Number(order.total) || 0,
     items,
     kitchen: kitchen ? publicKitchen(kitchen) : null,
+    review: review || null,
   };
 }

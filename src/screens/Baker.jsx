@@ -5,7 +5,7 @@ import { isPastCutoff, orderDateLabel } from '../lib/dates.js';
 import { kitchenBlockReason } from '../lib/kitchen-status.js';
 import { go } from '../lib/route.js';
 import { useApp, useT } from '../store/app.jsx';
-import { Button, EmptyState, FoodStage, Modal, Reveal } from '../components/ui.jsx';
+import { Button, EmptyState, FoodStage, Modal, Reveal, ReviewList, ratingText } from '../components/ui.jsx';
 import ReportForm from '../components/ReportForm.jsx';
 
 function DishPlate({ dish, kitchen, currency, locale, t, onAdd, closed }) {
@@ -95,6 +95,7 @@ export default function Baker({ id }) {
   const currency = country?.currency || 'UZS';
   const late = isPastCutoff(k.cutoffHour);
   const closed = Boolean(kitchenBlockReason(k));
+  const rating = ratingText(k);
 
   function add(dish) {
     if (closed) return;
@@ -112,6 +113,9 @@ export default function Baker({ id }) {
         <FoodStage photoUrl={k.photoUrl} emoji={k.emoji || '🥐'} accent={k.accent} ratio="poster" />
         <div className="bg-white p-5">
           <h1 className="text-2xl font-extrabold tracking-tight">{k.name}</h1>
+          {rating ? <p className="mt-1 text-sm font-bold text-primary">{rating}</p> : (
+            <p className="mt-1 text-sm text-mute">{t('reviewsEmpty')}</p>
+          )}
           {closed && (
             <p className="mt-2 rounded-cut bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
               {k.verificationStatus === 'rejected' ? t('kitchenRejected') : t('kitchenHidden')}
@@ -154,6 +158,11 @@ export default function Baker({ id }) {
           </Reveal>
         ))}
       </div>
+
+      <section className="rounded-3xl bg-white p-4 shadow-card">
+        <h2 className="text-lg font-extrabold">{t('reviews')}</h2>
+        <ReviewList reviews={data.reviews || []} locale={app.locale} empty={t('reviewsEmpty')} />
+      </section>
 
       <Modal open={Boolean(replaceDish)} title={t('cartOtherBaker')} onClose={() => setReplaceDish(null)}>
         <div className="grid grid-cols-2 gap-3">

@@ -40,6 +40,7 @@ export default function Orders() {
       <p className="text-sm text-mute">{t('trackHint')}</p>
       {orders.map((o) => {
         const kitchenBlock = kitchenBlockReason(o.kitchen);
+        const needsReview = o.status === 'delivered' && !o.review;
         return (
           <button
             key={o.id}
@@ -59,6 +60,7 @@ export default function Orders() {
             <p className="mt-1 text-sm text-mute">
               {o.id} · {formatDate(o.forDate, app.locale)} · {formatMoney(o.total, o.currency, app.locale)}
             </p>
+            {needsReview && <p className="mt-1 text-sm font-bold text-primary">{t('rateCta')}</p>}
           </button>
         );
       })}

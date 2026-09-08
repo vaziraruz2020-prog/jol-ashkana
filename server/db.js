@@ -24,6 +24,7 @@ const COLLECTIONS = [
   'orderEvents',
   'notifications',
   'auditLog',
+  'reviews',
 ];
 
 const TABLE_FOR = {
@@ -39,6 +40,7 @@ const TABLE_FOR = {
   orderEvents: 'order_events',
   notifications: 'notifications',
   auditLog: 'audit_log',
+  reviews: 'reviews',
 };
 
 let mem = null;

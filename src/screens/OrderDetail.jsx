@@ -6,8 +6,60 @@ import { formatDate } from '../lib/dates.js';
 import { kitchenBlockReason } from '../lib/kitchen-status.js';
 import { go } from '../lib/route.js';
 import { useApp, useT } from '../store/app.jsx';
-import { EmptyState, StatusStepper } from '../components/ui.jsx';
+import { Button, EmptyState, Field, ReviewList, Stars, StatusStepper, inputClass } from '../components/ui.jsx';
 import ReportForm from '../components/ReportForm.jsx';
+
+function ReviewForm({ order, onSaved }) {
+  const t = useT();
+  const app = useApp();
+  const [rating, setRating] = useState(0);
+  const [body, setBody] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!rating) {
+      app.notify(t('reviewNeedRating'));
+      return;
+    }
+    setBusy(true);
+    try {
+      const data = await api(`/orders/${order.id}/review`, { method: 'POST', body: { rating, body } });
+      onSaved(data.review);
+      app.notify(t('reviewSaved'));
+    } catch (err) {
+      const code = err?.data?.error;
+      if (code === 'exists') app.notify(t('reviewExists'));
+      else if (code === 'not_ready') app.notify(t('reviewNotReady'));
+      else if (code === 'own_kitchen') app.notify(t('reviewOwnKitchen'));
+      else if (code === 'fields') app.notify(t('reviewFields'));
+      else app.notify(t('serverError'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="rounded-3xl bg-white p-4 shadow-card">
+      <h2 className="text-lg font-extrabold">{t('rateKitchen')}</h2>
+      <p className="mt-1 text-sm text-mute">{t('rateHint')}</p>
+      <div className="mt-2">
+        <Stars value={rating} onChange={setRating} />
+      </div>
+      <Field label={t('reviewComment')}>
+        <textarea
+          className={inputClass()}
+          value={body}
+          maxLength={400}
+          onChange={(e) => setBody(e.target.value)}
+        />
+      </Field>
+      <Button type="submit" disabled={busy} className="mt-3">
+        {t('reviewSubmit')}
+      </Button>
+    </form>
+  );
+}
 
 export default function OrderDetail({ id }) {
   const t = useT();
@@ -40,6 +92,7 @@ export default function OrderDetail({ id }) {
 
   const itemCount = (order.items || []).reduce((sum, item) => sum + Number(item.qty || 0), 0);
   const kitchenBlock = kitchenBlockReason(order.kitchen);
+  const canReview = order.status === 'delivered' && !order.review;
 
   return (
     <div className="space-y-4">
@@ -95,6 +148,17 @@ export default function OrderDetail({ id }) {
         <p className="mt-2 text-sm text-mute">{t('payCash')}</p>
         <p className="mt-2 text-sm">{order.address}</p>
       </div>
+
+      {canReview && (
+        <ReviewForm order={order} onSaved={(review) => setOrder((prev) => ({ ...prev, review }))} />
+      )}
+      {order.review && (
+        <div className="rounded-3xl bg-white p-4 shadow-card">
+          <h2 className="text-lg font-extrabold">{t('yourReview')}</h2>
+          <ReviewList reviews={[order.review]} locale={app.locale} />
+        </div>
+      )}
+
       <button type="button" className="font-bold text-red-600" onClick={() => setReportOpen(true)}>
         {t('report')}
       </button>

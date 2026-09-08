@@ -16,8 +16,10 @@ import {
   FoodStage,
   PhotoField,
   Reveal,
+  ReviewList,
   StatusChip,
   inputClass,
+  ratingText,
 } from '../components/ui.jsx';
 
 export default function Cabinet({ tab = 'orders' }) {
@@ -26,6 +28,7 @@ export default function Cabinet({ tab = 'orders' }) {
   const [kitchen, setKitchen] = useState(app.kitchen);
   const [dishes, setDishes] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [reviews, setReviews] = useState([]);
 
   useEffect(() => {
     if (!app.user) {
@@ -36,6 +39,7 @@ export default function Cabinet({ tab = 'orders' }) {
       .then((d) => {
         setKitchen(d.kitchen);
         setDishes(d.dishes || []);
+        setReviews(d.reviews || []);
         app.setKitchen(d.kitchen);
       })
       .catch(() => {});
@@ -77,14 +81,25 @@ export default function Cabinet({ tab = 'orders' }) {
         </p>
       )}
       {tab === 'kitchen' && (
-        <KitchenForm
-          key={kitchen?.id || 'new'}
-          kitchen={kitchen}
-          onSaved={(k) => {
-            setKitchen(k);
-            app.setKitchen(k);
-          }}
-        />
+        <>
+          {kitchen && (
+            <section className="rounded-3xl bg-white p-4 shadow-card">
+              <h2 className="text-lg font-extrabold">{t('reviews')}</h2>
+              {ratingText(kitchen) ? (
+                <p className="mt-1 text-sm font-bold text-primary">{ratingText(kitchen)}</p>
+              ) : null}
+              <ReviewList reviews={reviews} locale={app.locale} empty={t('reviewsEmptyBaker')} />
+            </section>
+          )}
+          <KitchenForm
+            key={kitchen?.id || 'new'}
+            kitchen={kitchen}
+            onSaved={(k) => {
+              setKitchen(k);
+              app.setKitchen(k);
+            }}
+          />
+        </>
       )}
       {tab === 'menu' && kitchen && (
         <MenuForm

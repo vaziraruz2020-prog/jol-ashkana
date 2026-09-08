@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { statusOrder } from '../copy/index.js';
+import { formatDate } from '../lib/dates.js';
 import { compressImage } from '../lib/photo.js';
 import { useInView } from '../lib/useInView.js';
 import { useT } from '../store/app.jsx';
@@ -296,12 +297,72 @@ export function FoodTile({ emoji, accent, className = '' }) {
   return <FoodStage emoji={emoji} accent={accent} ratio="thumb" className={className} />;
 }
 
+export function Stars({ value = 0, onChange, readOnly = false, size = 'md' }) {
+  const t = useT();
+  const cls = size === 'sm' ? 'h-8 w-8 text-base' : 'h-11 w-11 text-xl';
+  return (
+    <div className="flex gap-0.5" role={readOnly ? 'img' : 'radiogroup'} aria-label={t('reviews')}>
+      {[1, 2, 3, 4, 5].map((n) => {
+        const on = n <= value;
+        const star = <span className={on ? 'text-primary' : 'text-line'}>{on ? '★' : '☆'}</span>;
+        if (readOnly) {
+          return (
+            <span key={n} className={`grid ${cls} place-items-center`}>
+              {star}
+            </span>
+          );
+        }
+        return (
+          <button
+            key={n}
+            type="button"
+            aria-label={String(n)}
+            className={`grid ${cls} place-items-center rounded-cut transition hover:scale-110`}
+            onClick={() => onChange?.(n)}
+          >
+            {star}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function ratingText(kitchen) {
+  const count = Number(kitchen?.ratingCount) || 0;
+  if (!count) return '';
+  return `★ ${Number(kitchen.ratingAvg).toFixed(1)} · ${count}`;
+}
+
+export function ReviewList({ reviews = [], locale = 'ru', empty }) {
+  const t = useT();
+  if (!reviews.length) {
+    return <p className="mt-2 text-sm text-mute">{empty || t('reviewsEmpty')}</p>;
+  }
+  return (
+    <ul className="mt-3 space-y-3">
+      {reviews.map((r) => (
+        <li key={r.id} className="rounded-cut border border-line bg-cream/50 px-4 py-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-bold">{r.authorName || t('guest')}</p>
+            <p className="text-xs font-semibold text-mute">{formatDate(String(r.createdAt || '').slice(0, 10), locale)}</p>
+          </div>
+          <Stars value={r.rating} readOnly size="sm" />
+          {r.body ? <p className="mt-1 text-sm tracking-wide">{r.body}</p> : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function KitchenCard({ kitchen, meta, onClick }) {
+  const rating = ratingText(kitchen);
   return (
     <button type="button" onClick={onClick} className="card-cut hover-lift hover-cut group w-full text-left">
       <FoodStage photoUrl={kitchen.photoUrl} emoji={kitchen.emoji || '🥐'} accent={kitchen.accent} ratio="poster" />
       <div className="border-t border-ink/10 bg-white px-4 py-3">
         <p className="font-extrabold tracking-tight">{kitchen.name}</p>
+        {rating ? <p className="mt-1 text-sm font-bold text-primary">{rating}</p> : null}
         {meta ? (
           <p className="mt-1 truncate text-xs font-semibold uppercase tracking-[0.14em] text-mute">{meta}</p>
         ) : null}
