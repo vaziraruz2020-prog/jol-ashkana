@@ -141,12 +141,15 @@ a {
   transition: color 0.2s ease;
 }
 
-.anchor-link:hover {
-  color: #1c1917;
-}
-
 .anchor-link.is-active {
   color: #ff6b3b;
+}
+
+@media (hover: hover) {
+  .anchor-link:hover,
+  .anchor-link.is-active:hover {
+    color: #1c1917;
+  }
 }
 
 .hero-grain {
@@ -355,8 +358,7 @@ a {
   transform: none;
   transition:
     opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1),
-    background-color 0.2s ease;
+    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .vs-pill {
@@ -375,13 +377,7 @@ a {
 }
 
 .gallery-card {
-  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@media (hover: hover) {
-  .gallery-card:hover {
-    transform: translateY(-6px);
-  }
+  transition: none;
 }
 
 .baker-mosaic {
@@ -434,10 +430,6 @@ a {
 
 .pastry-ticker .city-marquee-track {
   animation-duration: 32s;
-}
-
-.city-marquee:hover .city-marquee-track {
-  animation-play-state: paused;
 }
 
 .page-hidden .city-marquee-track,

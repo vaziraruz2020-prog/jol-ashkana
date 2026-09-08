@@ -5,6 +5,7 @@ import { useApp, useT } from '../store/app.jsx';
 import { Button, Reveal } from '../components/ui.jsx';
 
 const SECTIONS = [
+  { id: 'gallery', key: 'landGalleryKicker' },
   { id: 'how', key: 'landHow' },
   { id: 'why', key: 'landWhy' },
   { id: 'bakers', key: 'landBakers' },
@@ -150,7 +151,7 @@ export default function Landing() {
   const steps = t('steps');
   const vs = t('vsPoints');
   const bakerPath = t('bakerPath');
-  const [active, setActive] = useState('how');
+  const [active, setActive] = useState('gallery');
   const heroRef = useRef(null);
   const platesRef = useRef([]);
 
@@ -284,7 +285,7 @@ export default function Landing() {
 
         <CityMarquee cities={geo.cities} locale={locale} />
 
-        <section id="gallery" className="section-anchor">
+        <section id="gallery" className="section-anchor scroll-mt-20">
           <SectionHead kicker={t('landGalleryKicker')} title={t('landGallery')} lead={t('landGalleryLead')} />
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-mute">{t('landGalleryHint')}</p>
           <div className="snap-strip -mx-4 flex gap-3 overflow-x-auto px-4 pb-2 no-scrollbar">
@@ -309,7 +310,7 @@ export default function Landing() {
           <div className="grid gap-3 sm:grid-cols-3">
             {(Array.isArray(steps) ? steps : []).map((s, i) => (
               <Reveal key={s.n} delay={i * 80}>
-                <div className="card-cut hover-lift hover-cut mask-reveal h-full overflow-hidden">
+                <div className="card-cut mask-reveal h-full overflow-hidden">
                   <div className="h-24 overflow-hidden">
                     <img
                       src={HOW_THUMBS[i] || PLATES[0].src}
@@ -349,7 +350,7 @@ export default function Landing() {
                 {(Array.isArray(vs) ? vs : []).map((row, i) => (
                   <div key={row.bad} className="grid gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-stretch">
                     <p
-                      className="why-bad rounded-cut bg-red-50 px-3 py-2.5 text-sm leading-relaxed text-red-800 transition hover:bg-red-100"
+                      className="why-bad rounded-cut bg-red-50 px-3 py-2.5 text-sm leading-relaxed text-red-800"
                       style={{ transitionDelay: `${i * 80}ms` }}
                     >
                       <span className="mb-1 block text-[10px] font-extrabold uppercase tracking-[0.16em] text-red-700/70 sm:hidden">
@@ -359,7 +360,7 @@ export default function Landing() {
                     </p>
                     <span className="vs-pill hidden self-center sm:inline-flex">{t('landWhyVs')}</span>
                     <p
-                      className="why-good rounded-cut bg-fresh-soft px-3 py-2.5 text-sm leading-relaxed text-fresh-dark transition hover:bg-fresh/20"
+                      className="why-good rounded-cut bg-fresh-soft px-3 py-2.5 text-sm leading-relaxed text-fresh-dark"
                       style={{ transitionDelay: `${i * 80 + 40}ms` }}
                     >
                       <span className="mb-1 block text-[10px] font-extrabold uppercase tracking-[0.16em] text-fresh-dark/70 sm:hidden">
