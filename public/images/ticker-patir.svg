@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 360" fill="none">
+  <defs>
+    <radialGradient id="patirBg" cx="40%" cy="20%" r="85%">
+      <stop offset="0%" stop-color="#FFF8F3"/>
+      <stop offset="50%" stop-color="#F0C9A0"/>
+      <stop offset="100%" stop-color="#C47A3A"/>
+    </radialGradient>
+    <radialGradient id="patirBread" cx="45%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#FFE09A"/>
+      <stop offset="55%" stop-color="#E39B4A"/>
+      <stop offset="100%" stop-color="#A85A1E"/>
+    </radialGradient>
+  </defs>
+  <rect width="480" height="360" fill="url(#patirBg)"/>
+  <ellipse cx="240" cy="304" rx="150" ry="18" fill="#6B3F1F" opacity=".2"/>
+  <ellipse cx="240" cy="200" rx="150" ry="128" fill="url(#patirBread)"/>
+  <ellipse cx="228" cy="184" rx="118" ry="100" fill="#F4C56A" opacity=".5"/>
+  <ellipse cx="240" cy="200" rx="58" ry="50" fill="#C47A3A" opacity=".35"/>
+  <circle cx="240" cy="200" r="36" fill="none" stroke="#8B4518" stroke-width="3" opacity=".4"/>
+  <circle cx="222" cy="186" r="4" fill="#8B4518" opacity=".45"/>
+  <circle cx="258" cy="192" r="4" fill="#8B4518" opacity=".45"/>
+  <circle cx="236" cy="218" r="4" fill="#8B4518" opacity=".45"/>
+  <circle cx="252" cy="214" r="3" fill="#8B4518" opacity=".4"/>
+  <circle cx="214" cy="208" r="3" fill="#8B4518" opacity=".4"/>
+  <path d="M140 168c28-8 52-6 76 8" stroke="#FFE09A" stroke-width="5" stroke-linecap="round" opacity=".35"/>
+</svg>

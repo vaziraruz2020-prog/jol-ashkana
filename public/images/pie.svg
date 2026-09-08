@@ -1,10 +1,41 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" fill="none">
-  <rect width="240" height="180" fill="#FFE8D6"/>
-  <ellipse cx="120" cy="154" rx="72" ry="10" fill="#E8D5C4" opacity=".5"/>
-  <ellipse cx="120" cy="118" rx="78" ry="36" fill="#C47A3A"/>
-  <ellipse cx="120" cy="112" rx="70" ry="30" fill="#E39B4A"/>
-  <ellipse cx="120" cy="108" rx="58" ry="22" fill="#B23A2A"/>
-  <path d="M70 108c16-18 34-18 50 0 16 18 34 18 50 0" stroke="#FFE09A" stroke-width="4" stroke-linecap="round"/>
-  <path d="M84 96c10-8 22-8 32 0" stroke="#FFD18A" stroke-width="3" stroke-linecap="round" opacity=".7"/>
-  <circle cx="120" cy="104" r="5" fill="#FFE09A"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 360" fill="none">
+  <defs>
+    <radialGradient id="pieBg" cx="50%" cy="28%" r="80%">
+      <stop offset="0%" stop-color="#FFF3E8"/>
+      <stop offset="55%" stop-color="#F3C9A4"/>
+      <stop offset="100%" stop-color="#D9A078"/>
+    </radialGradient>
+    <radialGradient id="piePlate" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#FFF8F1"/>
+      <stop offset="70%" stop-color="#E8D5C4"/>
+      <stop offset="100%" stop-color="#CDB39A"/>
+    </radialGradient>
+    <radialGradient id="pieCrust" cx="42%" cy="35%" r="70%">
+      <stop offset="0%" stop-color="#FFE09A"/>
+      <stop offset="45%" stop-color="#E39B4A"/>
+      <stop offset="100%" stop-color="#B86A22"/>
+    </radialGradient>
+    <radialGradient id="pieFill" cx="50%" cy="40%" r="65%">
+      <stop offset="0%" stop-color="#C4472A"/>
+      <stop offset="55%" stop-color="#8F1E1E"/>
+      <stop offset="100%" stop-color="#6B1414"/>
+    </radialGradient>
+    <filter id="pieSoft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+  </defs>
+  <rect width="480" height="360" fill="url(#pieBg)"/>
+  <ellipse cx="240" cy="302" rx="168" ry="22" fill="#6B3F1F" opacity=".22" filter="url(#pieSoft)"/>
+  <ellipse cx="240" cy="268" rx="176" ry="54" fill="url(#piePlate)"/>
+  <ellipse cx="240" cy="258" rx="154" ry="42" fill="#F3E4D2"/>
+  <ellipse cx="240" cy="198" rx="132" ry="118" fill="url(#pieCrust)"/>
+  <ellipse cx="240" cy="198" rx="108" ry="96" fill="url(#pieFill)"/>
+  <ellipse cx="228" cy="178" rx="78" ry="62" fill="#E35A3A" opacity=".45"/>
+  <path d="M240 102c-4 28-18 48-38 62 22 6 40 8 56 2-6-20-10-40-18-64Z" fill="#FFE09A" opacity=".55"/>
+  <path d="M152 198h176" stroke="#FFE09A" stroke-width="5" stroke-linecap="round" opacity=".35"/>
+  <path d="M240 102v192" stroke="#FFE09A" stroke-width="5" stroke-linecap="round" opacity=".28"/>
+  <path d="M168 140c48 18 96 18 144 0" stroke="#FFD18A" stroke-width="4" stroke-linecap="round" opacity=".45"/>
+  <circle cx="214" cy="186" r="7" fill="#FFE09A" opacity=".7"/>
+  <circle cx="268" cy="204" r="5" fill="#FFD18A" opacity=".65"/>
+  <circle cx="240" cy="168" r="6" fill="#FFF6D6" opacity=".5"/>
 </svg>

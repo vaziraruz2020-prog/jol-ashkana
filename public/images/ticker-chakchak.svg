@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 360" fill="none">
+  <defs>
+    <radialGradient id="chakBg" cx="50%" cy="25%" r="80%">
+      <stop offset="0%" stop-color="#FFF3E8"/>
+      <stop offset="55%" stop-color="#F3C9A4"/>
+      <stop offset="100%" stop-color="#C47A3A"/>
+    </radialGradient>
+    <linearGradient id="honey" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFE09A"/>
+      <stop offset="100%" stop-color="#C47A3A"/>
+    </linearGradient>
+  </defs>
+  <rect width="480" height="360" fill="url(#chakBg)"/>
+  <ellipse cx="240" cy="292" rx="150" ry="20" fill="#6B3F1F" opacity=".2"/>
+  <ellipse cx="240" cy="250" rx="158" ry="46" fill="#F3E4D2"/>
+  <ellipse cx="240" cy="242" rx="138" ry="34" fill="#E8D5C4"/>
+  <g fill="#E39B4A">
+    <rect x="150" y="150" width="28" height="18" rx="6" transform="rotate(-18 164 159)"/>
+    <rect x="186" y="138" width="30" height="18" rx="6" transform="rotate(12 201 147)"/>
+    <rect x="226" y="132" width="28" height="18" rx="6" transform="rotate(-8 240 141)"/>
+    <rect x="262" y="140" width="30" height="18" rx="6" transform="rotate(16 277 149)"/>
+    <rect x="298" y="154" width="28" height="18" rx="6" transform="rotate(-12 312 163)"/>
+    <rect x="164" y="172" width="30" height="18" rx="6" transform="rotate(8 179 181)"/>
+    <rect x="204" y="164" width="28" height="18" rx="6" transform="rotate(-14 218 173)"/>
+    <rect x="242" y="168" width="30" height="18" rx="6" transform="rotate(10 257 177)"/>
+    <rect x="280" y="176" width="28" height="18" rx="6" transform="rotate(-6 294 185)"/>
+    <rect x="178" y="194" width="28" height="18" rx="6" transform="rotate(14 192 203)"/>
+    <rect x="216" y="190" width="30" height="18" rx="6" transform="rotate(-10 231 199)"/>
+    <rect x="256" y="196" width="28" height="18" rx="6" transform="rotate(8 270 205)"/>
+  </g>
+  <g fill="#FFE09A" opacity=".55">
+    <rect x="198" y="150" width="22" height="12" rx="5" transform="rotate(20 209 156)"/>
+    <rect x="248" y="158" width="22" height="12" rx="5" transform="rotate(-16 259 164)"/>
+    <rect x="228" y="182" width="22" height="12" rx="5"/>
+  </g>
+  <path d="M190 128c20 8 40 6 58-4" stroke="url(#honey)" stroke-width="6" stroke-linecap="round" opacity=".7"/>
+</svg>

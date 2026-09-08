@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 360" fill="none">
+  <defs>
+    <radialGradient id="cookBg" cx="50%" cy="20%" r="85%">
+      <stop offset="0%" stop-color="#FFF3E8"/>
+      <stop offset="55%" stop-color="#E8C4A4"/>
+      <stop offset="100%" stop-color="#C47A3A"/>
+    </radialGradient>
+  </defs>
+  <rect width="480" height="360" fill="url(#cookBg)"/>
+  <ellipse cx="240" cy="302" rx="160" ry="18" fill="#6B3F1F" opacity=".18"/>
+  <circle cx="168" cy="200" r="78" fill="#C47A3A"/>
+  <circle cx="164" cy="194" r="66" fill="#E39B4A"/>
+  <circle cx="148" cy="178" r="8" fill="#6B3F1F" opacity=".55"/>
+  <circle cx="186" cy="170" r="7" fill="#6B3F1F" opacity=".5"/>
+  <circle cx="176" cy="210" r="6" fill="#6B3F1F" opacity=".5"/>
+  <circle cx="132" cy="208" r="5" fill="#6B3F1F" opacity=".45"/>
+  <circle cx="198" cy="198" r="6" fill="#6B3F1F" opacity=".45"/>
+  <circle cx="312" cy="188" r="86" fill="#B86A22"/>
+  <circle cx="308" cy="180" r="72" fill="#E39B4A"/>
+  <circle cx="286" cy="160" r="8" fill="#6B3F1F" opacity=".55"/>
+  <circle cx="328" cy="154" r="7" fill="#6B3F1F" opacity=".5"/>
+  <circle cx="318" cy="198" r="7" fill="#6B3F1F" opacity=".5"/>
+  <circle cx="274" cy="192" r="6" fill="#6B3F1F" opacity=".45"/>
+  <circle cx="344" cy="186" r="6" fill="#6B3F1F" opacity=".45"/>
+  <circle cx="300" cy="216" r="5" fill="#6B3F1F" opacity=".4"/>
+  <circle cx="236" cy="246" r="54" fill="#C47A3A"/>
+  <circle cx="232" cy="240" r="44" fill="#F4C56A"/>
+  <circle cx="220" cy="228" r="6" fill="#6B3F1F" opacity=".5"/>
+  <circle cx="246" cy="236" r="5" fill="#6B3F1F" opacity=".45"/>
+  <circle cx="232" cy="254" r="5" fill="#6B3F1F" opacity=".4"/>
+</svg>

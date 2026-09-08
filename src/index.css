@@ -16,6 +16,11 @@ body,
   min-height: 100%;
 }
 
+html,
+body {
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   background: #fff8f3;
@@ -375,19 +380,14 @@ a {
 
 @media (hover: hover) {
   .gallery-card:hover {
-    transform: translateY(-6px) scale(1.02);
-  }
-
-  .ken-burns-wrap:hover .ken-burns,
-  .img-zoom-wrap:hover .ken-burns {
-    animation: ken-burns 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transform: translateY(-6px);
   }
 }
 
 .baker-mosaic {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-auto-rows: 72px;
+  grid-auto-rows: 84px;
   gap: 2px;
 }
 
@@ -395,13 +395,17 @@ a {
   grid-row: span 2;
 }
 
-.baker-mosaic > :nth-child(4) {
+.baker-mosaic > :nth-child(5) {
   grid-row: span 2;
+}
+
+.baker-mosaic > :nth-child(6) {
+  grid-column: span 2;
 }
 
 @media (min-width: 640px) {
   .baker-mosaic {
-    grid-auto-rows: 96px;
+    grid-auto-rows: 110px;
   }
 }
 
@@ -416,8 +420,20 @@ a {
   animation: marquee 42s linear infinite;
 }
 
+.pastry-ticker-bleed {
+  width: 100vw;
+  max-width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  margin-top: 3rem;
+}
+
+.pastry-ticker {
+  mask-image: none;
+}
+
 .pastry-ticker .city-marquee-track {
-  animation-duration: 28s;
+  animation-duration: 32s;
 }
 
 .city-marquee:hover .city-marquee-track {
