@@ -14,6 +14,7 @@ import {
 import { publicDish, publicOrder } from './serialize.js';
 import {
   flag,
+  kitchenUnavailableCode,
   kitchenVisible,
   newId,
   newOrderId,
@@ -329,6 +330,13 @@ function buildLines(itemsIn, dishes) {
   return { lines, total };
 }
 
+function throwIfKitchenClosed(kitchen, owner) {
+  if (!kitchen) throw new ApiError('not_found', 404);
+  if (!kitchenVisible(kitchen, owner)) {
+    throw new ApiError(kitchenUnavailableCode(kitchen, owner) || 'hidden', 400);
+  }
+}
+
 async function createOrderMem({ user, itemsIn, guestName, guestPhone, deliveryType, slot, address, comment }) {
   const dishIds = [...new Set(itemsIn.map((i) => i.dishId))];
   const dishes = dishIds.map((id) => memFindById('dishes', id));
@@ -337,7 +345,7 @@ async function createOrderMem({ user, itemsIn, guestName, guestPhone, deliveryTy
   if (dishes.some((d) => d.kitchenId !== kitchenId)) throw new ApiError('mixed');
   const kitchen = memFindById('kitchens', kitchenId);
   const owner = kitchen ? memFindById('users', kitchen.ownerUserId) : null;
-  if (!kitchenVisible(kitchen, owner)) throw new ApiError('hidden', 404);
+  throwIfKitchenClosed(kitchen, owner);
   if (deliveryType === 'courier' && !flag(kitchen.deliveryCourier)) throw new ApiError('delivery');
   if (deliveryType === 'pickup' && !flag(kitchen.deliveryPickup)) throw new ApiError('delivery');
   const { lines, total } = buildLines(itemsIn, dishes);
@@ -405,9 +413,8 @@ export async function createOrder(input) {
     if (dishes.some((d) => d.kitchenId !== kitchenId)) throw new ApiError('mixed');
     const kitchenRows = await q('SELECT * FROM kitchens WHERE id = $1 FOR UPDATE', [kitchenId]);
     const kitchen = kitchenRows[0];
-    if (!kitchen) throw new ApiError('hidden', 404);
-    const ownerRows = await q('SELECT * FROM users WHERE id = $1', [kitchen.ownerUserId]);
-    if (!kitchenVisible(kitchen, ownerRows[0])) throw new ApiError('hidden', 404);
+    const ownerRows = kitchen ? await q('SELECT * FROM users WHERE id = $1', [kitchen.ownerUserId]) : [];
+    throwIfKitchenClosed(kitchen, ownerRows[0]);
     if (deliveryType === 'courier' && !flag(kitchen.deliveryCourier)) throw new ApiError('delivery');
     if (deliveryType === 'pickup' && !flag(kitchen.deliveryPickup)) throw new ApiError('delivery');
     const { lines, total } = buildLines(itemsIn, dishes);
@@ -526,6 +533,22 @@ export async function updateOrderStatus(order, { status, actorUserId, source, fo
     });
     return rows[0];
   });
+}
+
+export async function cancelOpenKitchenOrders(kitchenId, actorUserId) {
+  const orders = await listOrdersByKitchen(kitchenId);
+  const cancelled = [];
+  for (const order of orders) {
+    if (order.status === 'delivered' || order.status === 'cancelled') continue;
+    const next = await updateOrderStatus(order, {
+      status: 'cancelled',
+      actorUserId,
+      source: 'support',
+      force: true,
+    });
+    cancelled.push(next);
+  }
+  return cancelled;
 }
 
 export async function insertTicket(row) {

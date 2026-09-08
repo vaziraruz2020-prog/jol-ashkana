@@ -3,6 +3,7 @@ import { api } from '../lib/api.js';
 import { usePoll } from '../lib/poll.js';
 import { formatMoney } from '../lib/format.js';
 import { formatDate } from '../lib/dates.js';
+import { kitchenBlockReason } from '../lib/kitchen-status.js';
 import { go } from '../lib/route.js';
 import { useApp, useT } from '../store/app.jsx';
 import { EmptyState, StatusStepper } from '../components/ui.jsx';
@@ -38,6 +39,7 @@ export default function OrderDetail({ id }) {
   if (!order) return <p className="text-mute">…</p>;
 
   const itemCount = (order.items || []).reduce((sum, item) => sum + Number(item.qty || 0), 0);
+  const kitchenBlock = kitchenBlockReason(order.kitchen);
 
   return (
     <div className="space-y-4">
@@ -49,6 +51,12 @@ export default function OrderDetail({ id }) {
         </p>
         <p className="mt-2 text-xs text-mute">{order.id}</p>
       </section>
+
+      {kitchenBlock && (
+        <p className="rounded-cut bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          {kitchenBlock === 'rejected' ? t('orderKitchenRejected') : t('orderKitchenHidden')}
+        </p>
+      )}
 
       {order.status === 'cancelled' ? (
         <p className="font-bold text-red-600">{t('status.cancelled')}</p>

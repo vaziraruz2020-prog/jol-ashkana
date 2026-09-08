@@ -1,14 +1,22 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
 import { cartTotal, formatMoney, isValidPhone } from '../lib/format.js';
+import { kitchenBlockReason } from '../lib/kitchen-status.js';
 import { go } from '../lib/route.js';
 import { useApp, useT } from '../store/app.jsx';
-import { Button, Chip, Field, inputClass } from '../components/ui.jsx';
+import { Button, Chip, EmptyState, Field, inputClass } from '../components/ui.jsx';
+
+function checkoutErrorText(code, t) {
+  if (code === 'rejected') return t('cartKitchenRejected');
+  if (code === 'hidden') return t('cartKitchenHidden');
+  return t('serverError');
+}
 
 export default function Checkout() {
   const t = useT();
   const app = useApp();
   const [kitchen, setKitchen] = useState(null);
+  const [block, setBlock] = useState(null);
   const [name, setName] = useState(app.user?.name || '');
   const [phone, setPhone] = useState(app.user?.phone || '');
   const [delivery, setDelivery] = useState('pickup');
@@ -30,15 +38,37 @@ export default function Checkout() {
       go('#/cart');
       return;
     }
+    let cancelled = false;
     api(`/kitchens/${kitchenId}`)
       .then((d) => {
+        if (cancelled) return;
         setKitchen(d.kitchen);
-        if (!d.kitchen.deliveryPickup && d.kitchen.deliveryCourier) setDelivery('courier');
+        const reason = kitchenBlockReason(d.kitchen);
+        setBlock(reason);
+        if (!reason && !d.kitchen.deliveryPickup && d.kitchen.deliveryCourier) setDelivery('courier');
       })
-      .catch(() => go('#/cart'));
+      .catch((err) => {
+        if (!cancelled) setBlock(kitchenBlockReason(null, err.data?.error));
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [app.user, kitchenId]);
 
   if (!app.user || !app.cart.length) return null;
+
+  if (block === 'rejected' || block === 'hidden') {
+    return (
+      <EmptyState
+        title={block === 'rejected' ? t('cartKitchenRejected') : t('cartKitchenHidden')}
+        action={t('cartClear')}
+        onAction={() => {
+          app.clearCart();
+          go('#/catalog');
+        }}
+      />
+    );
+  }
 
   async function submit(e) {
     e.preventDefault();
@@ -73,7 +103,12 @@ export default function Checkout() {
       app.notify(t('orderPlaced'));
       go(`#/orders/${data.order.id}`);
     } catch (err) {
-      setError(err.data?.error || 'server');
+      const code = err.data?.error || 'server';
+      if (code === 'rejected' || code === 'hidden') {
+        setBlock(code);
+        return;
+      }
+      setError(code);
     } finally {
       setBusy(false);
     }
@@ -128,9 +163,9 @@ export default function Checkout() {
         {t('total')}: {formatMoney(cartTotal(app.cart), currency, app.locale)}
       </p>
       {error && !['name', 'phone', 'address'].includes(error) && (
-        <p className="text-sm text-red-600">{t('serverError')}</p>
+        <p className="text-sm text-red-600">{checkoutErrorText(error, t)}</p>
       )}
-      <Button type="submit" disabled={busy}>
+      <Button type="submit" disabled={busy || !kitchen}>
         {t('orderTomorrow')}
       </Button>
     </form>

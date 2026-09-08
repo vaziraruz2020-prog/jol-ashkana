@@ -5,6 +5,7 @@ import { ApiError } from './errors.js';
 import {
   attachOrder,
   attachOrders,
+  cancelOpenKitchenOrders,
   createOrder,
   findCityById,
   findDishById,
@@ -40,7 +41,7 @@ import {
   writeAudit,
 } from './repos.js';
 import { publicDish, publicKitchen, publicUser } from './serialize.js';
-import { flag, kitchenVisible, sanitizePhotoUrl } from './util.js';
+import { flag, kitchenUnavailableCode, kitchenVisible, sanitizePhotoUrl } from './util.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -459,7 +460,7 @@ export async function handle(req, res) {
       const canSee =
         kitchenVisible(kitchen, owner) || (user && (user.id === kitchen.ownerUserId || flag(user.isSupport)));
       if (!canSee) {
-        send(res, 404, { error: 'hidden' });
+        send(res, 404, { error: kitchenUnavailableCode(kitchen, owner) || 'hidden' });
         return;
       }
       const dishes = (await listDishesByKitchen(kitchen.id)).map(publicDish);
@@ -795,6 +796,9 @@ export async function handle(req, res) {
         return;
       }
       const next = await updateKitchen(kitchen.id, patch);
+      if (next.verificationStatus === 'rejected' || flag(next.hidden)) {
+        await cancelOpenKitchenOrders(next.id, user.id);
+      }
       await safeAudit({
         actorUserId: user.id,
         action: 'admin_kitchen',

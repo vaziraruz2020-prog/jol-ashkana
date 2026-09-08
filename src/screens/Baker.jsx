@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
 import { formatMoney } from '../lib/format.js';
 import { isPastCutoff, orderDateLabel } from '../lib/dates.js';
+import { kitchenBlockReason } from '../lib/kitchen-status.js';
 import { go } from '../lib/route.js';
 import { useApp, useT } from '../store/app.jsx';
 import { Button, EmptyState, FoodStage, Modal, Reveal } from '../components/ui.jsx';
 import ReportForm from '../components/ReportForm.jsx';
 
-function DishPlate({ dish, kitchen, currency, locale, t, onAdd }) {
-  const out = !dish.availableTomorrow || dish.leftover <= 0;
+function DishPlate({ dish, kitchen, currency, locale, t, onAdd, closed }) {
+  const out = closed || !dish.availableTomorrow || dish.leftover <= 0;
   return (
     <article className={`card-cut hover-lift hover-cut group ${out ? 'opacity-70' : ''}`}>
       <FoodStage
@@ -31,7 +32,13 @@ function DishPlate({ dish, kitchen, currency, locale, t, onAdd }) {
         ) : null}
         <div className="mt-3 flex items-center justify-between gap-3">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-mute">
-            {out ? t('leftoverOut') : dish.leftover <= 3 ? t('leftoverFew') : `${t('leftover')}: ${dish.leftover}`}
+            {closed
+              ? t('kitchenRejected')
+              : out
+                ? t('leftoverOut')
+                : dish.leftover <= 3
+                  ? t('leftoverFew')
+                  : `${t('leftover')}: ${dish.leftover}`}
           </p>
           <button
             type="button"
@@ -69,6 +76,15 @@ export default function Baker({ id }) {
     };
   }, [id]);
 
+  if (error === 'rejected') {
+    return (
+      <EmptyState
+        title={t('kitchenRejected')}
+        action={t('navDistrict')}
+        onAction={() => go('#/catalog')}
+      />
+    );
+  }
   if (error === 'hidden' || error === 'not_found') {
     return <EmptyState title={t('kitchenHidden')} action={t('navDistrict')} onAction={() => go('#/catalog')} />;
   }
@@ -78,8 +94,10 @@ export default function Baker({ id }) {
   const country = app.geo.countries.find((c) => c.id === k.countryId);
   const currency = country?.currency || 'UZS';
   const late = isPastCutoff(k.cutoffHour);
+  const closed = Boolean(kitchenBlockReason(k));
 
   function add(dish) {
+    if (closed) return;
     const result = app.addToCart(dish, { currency });
     if (result.error === 'other-baker') {
       setReplaceDish(dish);
@@ -94,6 +112,12 @@ export default function Baker({ id }) {
         <FoodStage photoUrl={k.photoUrl} emoji={k.emoji || '🥐'} accent={k.accent} ratio="poster" />
         <div className="bg-white p-5">
           <h1 className="text-2xl font-extrabold tracking-tight">{k.name}</h1>
+          {closed && (
+            <p className="mt-2 rounded-cut bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+              {k.verificationStatus === 'rejected' ? t('kitchenRejected') : t('kitchenHidden')}
+              {k.verificationStatus === 'rejected' ? ` — ${t('kitchenRejectedHint')}` : ` — ${t('kitchenHiddenHint')}`}
+            </p>
+          )}
           {k.bio ? <p className="mt-1 text-sm tracking-wide text-mute">{k.bio}</p> : null}
           <p className="mt-2 text-sm">{k.address}</p>
           <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-mute">
@@ -118,7 +142,15 @@ export default function Baker({ id }) {
       <div className="grid gap-4 sm:grid-cols-2">
         {data.dishes.map((dish, i) => (
           <Reveal key={dish.id} delay={i * 40}>
-            <DishPlate dish={dish} kitchen={k} currency={currency} locale={app.locale} t={t} onAdd={add} />
+            <DishPlate
+              dish={dish}
+              kitchen={k}
+              currency={currency}
+              locale={app.locale}
+              t={t}
+              onAdd={add}
+              closed={closed}
+            />
           </Reveal>
         ))}
       </div>

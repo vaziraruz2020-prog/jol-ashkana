@@ -44,6 +44,13 @@ export function kitchenVisible(k, owner) {
   return true;
 }
 
+export function kitchenUnavailableCode(k, owner) {
+  if (!k) return 'not_found';
+  if (k.verificationStatus === 'rejected') return 'rejected';
+  if (!kitchenVisible(k, owner)) return 'hidden';
+  return null;
+}
+
 export const STATUS_FLOW = ['accepted', 'baking', 'ready', 'delivered'];
 
 export function nextStatusAllowed(from, to, { force = false } = {}) {
