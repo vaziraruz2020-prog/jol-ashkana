@@ -36,7 +36,9 @@ export default function Catalog() {
     };
   }, [app.countryId, app.cityId, app.districtId]);
 
-  const visible = kitchens.filter((k) => k.verificationStatus === 'verified' && !k.hidden);
+  const visible = kitchens.filter(
+    (k) => k.verificationStatus === 'verified' && !k.hidden && k.ownerUserId !== app.user?.id,
+  );
 
   return (
     <div className="space-y-4">

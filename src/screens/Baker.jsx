@@ -2,14 +2,14 @@ import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
 import { formatMoney } from '../lib/format.js';
 import { isPastCutoff, orderDateLabel } from '../lib/dates.js';
-import { kitchenBlockReason } from '../lib/kitchen-status.js';
+import { isOwnKitchen, kitchenBlockReason } from '../lib/kitchen-status.js';
 import { go } from '../lib/route.js';
 import { useApp, useT } from '../store/app.jsx';
 import { Button, EmptyState, FoodStage, Modal, Reveal, ReviewList, ratingText } from '../components/ui.jsx';
 import ReportForm from '../components/ReportForm.jsx';
 
-function DishPlate({ dish, kitchen, currency, locale, t, onAdd, closed }) {
-  const out = closed || !dish.availableTomorrow || dish.leftover <= 0;
+function DishPlate({ dish, kitchen, currency, locale, t, onAdd, closed, ownKitchen }) {
+  const out = closed || ownKitchen || !dish.availableTomorrow || dish.leftover <= 0;
   return (
     <article className={`card-cut hover-lift hover-cut group ${out ? 'opacity-70' : ''}`}>
       <FoodStage
@@ -32,22 +32,26 @@ function DishPlate({ dish, kitchen, currency, locale, t, onAdd, closed }) {
         ) : null}
         <div className="mt-3 flex items-center justify-between gap-3">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-mute">
-            {closed
-              ? t('kitchenRejected')
-              : out
-                ? t('leftoverOut')
-                : dish.leftover <= 3
-                  ? t('leftoverFew')
-                  : `${t('leftover')}: ${dish.leftover}`}
+            {ownKitchen
+              ? t('ownKitchenShort')
+              : closed
+                ? t('kitchenRejected')
+                : out
+                  ? t('leftoverOut')
+                  : dish.leftover <= 3
+                    ? t('leftoverFew')
+                    : `${t('leftover')}: ${dish.leftover}`}
           </p>
-          <button
-            type="button"
-            disabled={out}
-            onClick={() => onAdd(dish)}
-            className="h-11 min-w-11 rounded-full bg-primary px-4 text-sm font-bold text-white shadow-pop transition duration-200 hover:bg-primary-dark disabled:bg-line disabled:text-mute disabled:shadow-none active:scale-[0.99]"
-          >
-            {t('addToCart')}
-          </button>
+          {!ownKitchen && (
+            <button
+              type="button"
+              disabled={out}
+              onClick={() => onAdd(dish)}
+              className="h-11 min-w-11 rounded-full bg-primary px-4 text-sm font-bold text-white shadow-pop transition duration-200 hover:bg-primary-dark disabled:bg-line disabled:text-mute disabled:shadow-none active:scale-[0.99]"
+            >
+              {t('addToCart')}
+            </button>
+          )}
         </div>
       </div>
     </article>
@@ -94,12 +98,17 @@ export default function Baker({ id }) {
   const country = app.geo.countries.find((c) => c.id === k.countryId);
   const currency = country?.currency || 'UZS';
   const late = isPastCutoff(k.cutoffHour);
-  const closed = Boolean(kitchenBlockReason(k));
+  const ownKitchen = isOwnKitchen(k, app.user);
+  const closed = Boolean(kitchenBlockReason(k, undefined, app.user)) && !ownKitchen;
   const rating = ratingText(k);
 
   function add(dish) {
-    if (closed) return;
-    const result = app.addToCart(dish, { currency });
+    if (closed || ownKitchen) return;
+    const result = app.addToCart(dish, { currency, ownerUserId: k.ownerUserId });
+    if (result.error === 'own_kitchen') {
+      app.notify(t('ownKitchen'));
+      return;
+    }
     if (result.error === 'other-baker') {
       setReplaceDish(dish);
       return;
@@ -116,6 +125,11 @@ export default function Baker({ id }) {
           {rating ? <p className="mt-1 text-sm font-bold text-primary">{rating}</p> : (
             <p className="mt-1 text-sm text-mute">{t('reviewsEmpty')}</p>
           )}
+          {ownKitchen && (
+            <p className="mt-2 rounded-cut bg-fresh-soft px-3 py-2 text-sm font-semibold text-fresh-dark">
+              {t('ownKitchen')} — {t('ownKitchenHint')}
+            </p>
+          )}
           {closed && (
             <p className="mt-2 rounded-cut bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
               {k.verificationStatus === 'rejected' ? t('kitchenRejected') : t('kitchenHidden')}
@@ -131,7 +145,7 @@ export default function Baker({ id }) {
             {' · '}
             {orderDateLabel(k.cutoffHour, app.locale, t)}
           </p>
-          {app.user && (
+          {app.user && !ownKitchen && (
             <button
               type="button"
               className="mt-3 text-sm font-bold text-red-600 transition hover:text-red-700"
@@ -154,6 +168,7 @@ export default function Baker({ id }) {
               t={t}
               onAdd={add}
               closed={closed}
+              ownKitchen={ownKitchen}
             />
           </Reveal>
         ))}
@@ -171,7 +186,7 @@ export default function Baker({ id }) {
           </Button>
           <Button
             onClick={() => {
-              app.replaceCartAndAdd(replaceDish, { currency });
+              app.replaceCartAndAdd(replaceDish, { currency, ownerUserId: k.ownerUserId });
               setReplaceDish(null);
               app.notify(t('added'));
             }}

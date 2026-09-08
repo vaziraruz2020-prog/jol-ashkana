@@ -9,6 +9,7 @@ import { Button, Chip, EmptyState, Field, inputClass } from '../components/ui.js
 function checkoutErrorText(code, t) {
   if (code === 'rejected') return t('cartKitchenRejected');
   if (code === 'hidden') return t('cartKitchenHidden');
+  if (code === 'own_kitchen') return t('cartOwnKitchen');
   return t('serverError');
 }
 
@@ -43,12 +44,12 @@ export default function Checkout() {
       .then((d) => {
         if (cancelled) return;
         setKitchen(d.kitchen);
-        const reason = kitchenBlockReason(d.kitchen);
+        const reason = kitchenBlockReason(d.kitchen, undefined, app.user);
         setBlock(reason);
         if (!reason && !d.kitchen.deliveryPickup && d.kitchen.deliveryCourier) setDelivery('courier');
       })
       .catch((err) => {
-        if (!cancelled) setBlock(kitchenBlockReason(null, err.data?.error));
+        if (!cancelled) setBlock(kitchenBlockReason(null, err.data?.error, app.user));
       });
     return () => {
       cancelled = true;
@@ -57,10 +58,16 @@ export default function Checkout() {
 
   if (!app.user || !app.cart.length) return null;
 
-  if (block === 'rejected' || block === 'hidden') {
+  if (block === 'rejected' || block === 'hidden' || block === 'own_kitchen') {
     return (
       <EmptyState
-        title={block === 'rejected' ? t('cartKitchenRejected') : t('cartKitchenHidden')}
+        title={
+          block === 'rejected'
+            ? t('cartKitchenRejected')
+            : block === 'own_kitchen'
+              ? t('cartOwnKitchen')
+              : t('cartKitchenHidden')
+        }
         action={t('cartClear')}
         onAction={() => {
           app.clearCart();
@@ -104,7 +111,7 @@ export default function Checkout() {
       go(`#/orders/${data.order.id}`);
     } catch (err) {
       const code = err.data?.error || 'server';
-      if (code === 'rejected' || code === 'hidden') {
+      if (code === 'rejected' || code === 'hidden' || code === 'own_kitchen') {
         setBlock(code);
         return;
       }

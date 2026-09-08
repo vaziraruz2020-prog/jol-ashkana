@@ -37,6 +37,7 @@ function cartLine(dish, kitchenMeta, qty = 1) {
     leftover: dish.leftover,
     qty,
     currency: kitchenMeta?.currency,
+    ownerUserId: kitchenMeta?.ownerUserId,
   };
 }
 
@@ -148,6 +149,9 @@ export function AppProvider({ children }) {
     }
 
     function addToCart(dish, kitchenMeta) {
+      if (user && (kitchenMeta?.ownerUserId === user.id || dish.kitchenId === kitchen?.id)) {
+        return { ok: false, error: 'own_kitchen' };
+      }
       if (!dish.availableTomorrow || dish.leftover <= 0) return { ok: false, error: 'out' };
       const other = cart.find((i) => i.kitchenId !== dish.kitchenId);
       if (other) return { ok: false, error: 'other-baker', kitchenId: dish.kitchenId };
@@ -163,6 +167,9 @@ export function AppProvider({ children }) {
     }
 
     function replaceCartAndAdd(dish, kitchenMeta) {
+      if (user && (kitchenMeta?.ownerUserId === user.id || dish.kitchenId === kitchen?.id)) {
+        return { ok: false, error: 'own_kitchen' };
+      }
       setCart([cartLine(dish, kitchenMeta, 1)]);
       return { ok: true };
     }

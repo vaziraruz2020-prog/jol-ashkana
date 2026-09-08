@@ -459,6 +459,12 @@ function throwIfKitchenClosed(kitchen, owner) {
   }
 }
 
+function throwIfOwnKitchen(kitchen, user) {
+  if (kitchen && user && kitchen.ownerUserId === user.id) {
+    throw new ApiError('own_kitchen');
+  }
+}
+
 async function createOrderMem({ user, itemsIn, guestName, guestPhone, deliveryType, slot, address, comment }) {
   const dishIds = [...new Set(itemsIn.map((i) => i.dishId))];
   const dishes = dishIds.map((id) => memFindById('dishes', id));
@@ -468,6 +474,7 @@ async function createOrderMem({ user, itemsIn, guestName, guestPhone, deliveryTy
   const kitchen = memFindById('kitchens', kitchenId);
   const owner = kitchen ? memFindById('users', kitchen.ownerUserId) : null;
   throwIfKitchenClosed(kitchen, owner);
+  throwIfOwnKitchen(kitchen, user);
   if (deliveryType === 'courier' && !flag(kitchen.deliveryCourier)) throw new ApiError('delivery');
   if (deliveryType === 'pickup' && !flag(kitchen.deliveryPickup)) throw new ApiError('delivery');
   const { lines, total } = buildLines(itemsIn, dishes);
@@ -537,6 +544,7 @@ export async function createOrder(input) {
     const kitchen = kitchenRows[0];
     const ownerRows = kitchen ? await q('SELECT * FROM users WHERE id = $1', [kitchen.ownerUserId]) : [];
     throwIfKitchenClosed(kitchen, ownerRows[0]);
+    throwIfOwnKitchen(kitchen, user);
     if (deliveryType === 'courier' && !flag(kitchen.deliveryCourier)) throw new ApiError('delivery');
     if (deliveryType === 'pickup' && !flag(kitchen.deliveryPickup)) throw new ApiError('delivery');
     const { lines, total } = buildLines(itemsIn, dishes);

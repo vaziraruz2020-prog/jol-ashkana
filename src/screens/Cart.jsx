@@ -21,31 +21,41 @@ export default function Cart() {
     let cancelled = false;
     api(`/kitchens/${kitchenId}`)
       .then((d) => {
-        if (!cancelled) setBlock(kitchenBlockReason(d.kitchen));
+        if (!cancelled) setBlock(kitchenBlockReason(d.kitchen, undefined, app.user));
       })
       .catch((err) => {
-        if (!cancelled) setBlock(kitchenBlockReason(null, err.data?.error));
+        if (!cancelled) setBlock(kitchenBlockReason(null, err.data?.error, app.user));
       });
     return () => {
       cancelled = true;
     };
-  }, [kitchenId]);
+  }, [kitchenId, app.user]);
 
   if (!app.cart.length) {
     return <EmptyState title={t('cartEmpty')} action={t('ctaDistrict')} onAction={() => go('#/catalog')} />;
   }
 
-  const blocked = block === 'rejected' || block === 'hidden';
+  const blocked = block === 'rejected' || block === 'hidden' || block === 'own_kitchen';
+
+  function blockTitle() {
+    if (block === 'rejected') return t('cartKitchenRejected');
+    if (block === 'own_kitchen') return t('cartOwnKitchen');
+    return t('cartKitchenHidden');
+  }
+
+  function blockHint() {
+    if (block === 'rejected') return t('cartKitchenRejectedHint');
+    if (block === 'own_kitchen') return t('cartOwnKitchenHint');
+    return t('cartKitchenHiddenHint');
+  }
 
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-extrabold tracking-tight">{t('navCart')}</h1>
       {blocked && (
         <div className="rounded-cut bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-          <p>{block === 'rejected' ? t('cartKitchenRejected') : t('cartKitchenHidden')}</p>
-          <p className="mt-1 font-medium text-red-600">
-            {block === 'rejected' ? t('cartKitchenRejectedHint') : t('cartKitchenHiddenHint')}
-          </p>
+          <p>{blockTitle()}</p>
+          <p className="mt-1 font-medium text-red-600">{blockHint()}</p>
         </div>
       )}
       {app.cart.map((item) => (
