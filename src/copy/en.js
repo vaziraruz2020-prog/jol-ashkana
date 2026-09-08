@@ -243,6 +243,7 @@ export const en = {
   adminTicketUpdated: 'Report status updated',
   adminActionFailed: 'That didn’t work. Try again.',
   adminFieldsError: 'Fill in the required fields.',
+  adminCannotBlockSupport: 'Support accounts cannot be blocked.',
   adminEmptyKitchens: 'No kitchen applications yet.',
   adminEmptyUsers: 'No users yet.',
   adminEmptyTickets: 'No reports yet.',

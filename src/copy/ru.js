@@ -242,6 +242,7 @@ export const ru = {
   adminTicketUpdated: 'Статус жалобы обновлён',
   adminActionFailed: 'Не получилось. Попробуй ещё раз.',
   adminFieldsError: 'Заполни обязательные поля.',
+  adminCannotBlockSupport: 'Аккаунт поддержки нельзя заблокировать.',
   adminEmptyKitchens: 'Заявок на кухни пока нет.',
   adminEmptyUsers: 'Пользователей пока нет.',
   adminEmptyTickets: 'Жалоб пока нет.',

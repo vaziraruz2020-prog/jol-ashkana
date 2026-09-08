@@ -48,6 +48,8 @@ export default function Admin() {
     if (code === 'api_missing') return t('apiMissingError');
     if (code === 'server') return t('serverError');
     if (code === 'fields') return t('adminFieldsError');
+    if (code === 'reason') return t('blockReasonRequired');
+    if (code === 'forbidden') return t('adminCannotBlockSupport');
     return t('adminActionFailed');
   }
 
@@ -80,6 +82,12 @@ export default function Admin() {
     const parts = [t(key) === key ? k.verificationStatus : t(key)];
     if (k.hidden) parts.push(t('hiddenShort'));
     return parts.join(' · ');
+  }
+
+  function canToggleBlock(u) {
+    if (u.id === app.user.id) return false;
+    if (u.isSupport && !u.blocked) return false;
+    return true;
   }
 
   return (
@@ -268,13 +276,14 @@ export default function Admin() {
                 {u.isSupport ? ` · ${t('iAmSupport')}` : ''}
                 {u.blocked ? ` · ${t('blockedTitle')}` : ''}
               </p>
-              {!u.isSupport && (
+              {canToggleBlock(u) && (
                 <div className="mt-2">
                   <Button
                     variant={u.blocked ? 'fresh' : 'danger'}
                     disabled={Boolean(busyId)}
                     onClick={() => {
-                      if (!u.blocked && !String(note).trim()) {
+                      const reason = String(note).trim();
+                      if (!u.blocked && !reason) {
                         app.notify(t('blockReasonRequired'));
                         return;
                       }
@@ -283,7 +292,7 @@ export default function Admin() {
                         () =>
                           api(`/admin/users/${u.id}`, {
                             method: 'POST',
-                            body: { blocked: !u.blocked, reason: note },
+                            body: { blocked: !u.blocked, reason, blockedReason: reason },
                           }),
                         (data) => {
                           if (data.user) {

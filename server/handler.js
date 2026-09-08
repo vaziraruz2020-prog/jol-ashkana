@@ -388,7 +388,7 @@ export async function handle(req, res) {
         send(res, 401, { error: 'auth' });
         return;
       }
-      if (flag(user.blocked)) {
+      if (flag(user.blocked) && !flag(user.isSupport)) {
         send(res, 403, { error: 'blocked', reason: user.blockedReason || '' });
         return;
       }
@@ -895,9 +895,13 @@ export async function handle(req, res) {
         send(res, 400, { error: 'fields' });
         return;
       }
-      const reason = String(body.blockedReason || '').trim();
+      const reason = String(body.blockedReason || body.reason || '').trim();
       if (blocked && !reason) {
         send(res, 400, { error: 'reason' });
+        return;
+      }
+      if (blocked && (flag(target.isSupport) || target.id === user.id)) {
+        send(res, 403, { error: 'forbidden' });
         return;
       }
       const next = await updateUser(target.id, { blocked, blockedReason: blocked ? reason : '' });

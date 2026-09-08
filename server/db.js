@@ -337,6 +337,17 @@ function isDuplicateKey(err) {
   return /duplicate key|users_pkey|users_email|unique constraint/i.test(msg);
 }
 
+function supportSeedPatch(found, email) {
+  const patch = {};
+  if (!flag(found.isSupport)) patch.isSupport = true;
+  if (found.email !== email) patch.email = email;
+  if (flag(found.blocked)) {
+    patch.blocked = false;
+    patch.blockedReason = '';
+  }
+  return patch;
+}
+
 async function seedAdmin() {
   const email = String(process.env.ADMIN_EMAIL || 'support@jol-ashkana.local').toLowerCase().trim();
   const password = String(process.env.ADMIN_PASSWORD || 'Support2025!');
@@ -362,9 +373,7 @@ async function seedAdmin() {
   if (!isPostgres()) {
     const found = memList('users', (u) => u.email === email || u.id === 'user_support')[0];
     if (found) {
-      const patch = {};
-      if (!flag(found.isSupport)) patch.isSupport = true;
-      if (found.email !== email) patch.email = email;
+      const patch = supportSeedPatch(found, email);
       if (Object.keys(patch).length) await updateRow('users', found.id, patch);
       return;
     }
@@ -374,9 +383,7 @@ async function seedAdmin() {
 
   const found = (await query('SELECT * FROM users WHERE email = $1 OR id = $2 LIMIT 1', [email, 'user_support']))[0];
   if (found) {
-    const patch = {};
-    if (!flag(found.isSupport)) patch.isSupport = true;
-    if (found.email !== email) patch.email = email;
+    const patch = supportSeedPatch(found, email);
     if (Object.keys(patch).length) await updateRow('users', found.id, patch);
     return;
   }
@@ -390,6 +397,8 @@ async function seedAdmin() {
       ON CONFLICT (id) DO UPDATE SET
         email = EXCLUDED.email,
         is_support = TRUE,
+        blocked = FALSE,
+        blocked_reason = '',
         updated_at = EXCLUDED.updated_at`,
       [
         supportRow.id,
