@@ -1,7 +1,7 @@
 import { formatMoney, cartTotal } from '../lib/format.js';
 import { go } from '../lib/route.js';
 import { useApp, useT } from '../store/app.jsx';
-import { Button, EmptyState, FoodStage } from '../components/ui.jsx';
+import { Button, EmptyState } from '../components/ui.jsx';
 
 export default function Cart() {
   const t = useT();
@@ -17,7 +17,6 @@ export default function Cart() {
       <h1 className="text-2xl font-extrabold tracking-tight">{t('navCart')}</h1>
       {app.cart.map((item) => (
         <div key={item.dishId} className="card-cut hover-lift flex items-center gap-3 bg-white p-3">
-          <FoodStage photoUrl={item.photoUrl} emoji={item.emoji || '🥟'} ratio="thumb" />
           <div className="min-w-0 flex-1">
             <p className="font-extrabold tracking-tight">{item.name}</p>
             <p className="text-sm text-mute">{formatMoney(item.price, currency, app.locale)}</p>

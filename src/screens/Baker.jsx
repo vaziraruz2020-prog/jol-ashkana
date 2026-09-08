@@ -78,7 +78,6 @@ export default function Baker({ id }) {
   const country = app.geo.countries.find((c) => c.id === k.countryId);
   const currency = country?.currency || 'UZS';
   const late = isPastCutoff(k.cutoffHour);
-  const available = (data.dishes || []).filter((d) => d.availableTomorrow && d.leftover > 0);
 
   function add(dish) {
     const result = app.addToCart(dish, { currency });
@@ -115,38 +114,6 @@ export default function Baker({ id }) {
           )}
         </div>
       </div>
-
-      {available.length >= 3 && (
-        <div className="-mx-4">
-          <p className="mb-2 px-4 text-xs font-bold uppercase tracking-[0.18em] text-mute">{t('availableStrip')}</p>
-          <div className="snap-strip no-scrollbar flex gap-3 overflow-x-auto px-4 pb-1">
-            {available.map((dish) => (
-              <button
-                key={`av-${dish.id}`}
-                type="button"
-                onClick={() => add(dish)}
-                className="w-[min(68%,220px)] shrink-0 overflow-hidden rounded-cut bg-white text-left shadow-card transition duration-200 hover:shadow-lift active:scale-[0.99]"
-              >
-                <FoodStage
-                  photoUrl={dish.photoUrl}
-                  emoji={dish.emoji || '🥟'}
-                  accent={k.accent}
-                  ratio="plate"
-                  className="h-28"
-                />
-                <div className="px-3 py-2">
-                  <p className="truncate font-extrabold tracking-tight">{dish.name}</p>
-                  <p className="mt-0.5 text-xs font-semibold text-mute">
-                    {formatMoney(dish.price, currency, app.locale)}
-                    {dish.leftover <= 3 ? ` · ${t('leftoverFew')}` : ''}
-                  </p>
-                </div>
-              </button>
-            ))}
-            <div className="w-3 shrink-0" aria-hidden="true" />
-          </div>
-        </div>
-      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         {data.dishes.map((dish, i) => (
